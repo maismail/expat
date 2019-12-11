@@ -16,7 +16,6 @@
  */
 package io.hops.hopsworks.expat.migrations;
 
-import io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -32,10 +31,16 @@ import org.json.JSONObject;
 import java.io.IOException;
 
 public class Utils {
-  private static final Logger LOGGER = LogManager.getLogger(CreateKagentLogsIndeces.class);
+  private static final Logger LOGGER = LogManager.getLogger(Utils.class);
   
   public static void createKibanaIndexPattern(String projectName,  String indexPattern, CloseableHttpClient httpClient,
-    HttpHost kibana) throws IOException {
+      HttpHost kibana) throws IOException {
+    createKibanaIndexPattern(projectName, indexPattern, httpClient, kibana,
+        null);
+  }
+  
+  public static void createKibanaIndexPattern(String projectName,  String indexPattern, CloseableHttpClient httpClient,
+    HttpHost kibana, String token) throws IOException {
     String projectIndexPattern = projectName + indexPattern;
     String createIndexPatternStr = "/api/saved_objects/index-pattern/" + projectIndexPattern;
     String payload = "{\"attributes\": {\"title\": \"" + projectIndexPattern + "\"}}";
@@ -46,6 +51,10 @@ public class Utils {
       request.setEntity(new StringEntity(payload));
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       request.addHeader("kbn-xsrf", "required");
+      
+      if(token != null){
+        request.addHeader(HttpHeaders.AUTHORIZATION, token);
+      }
       
       LOGGER.info("Creating index pattern: " + projectIndexPattern);
       response = httpClient.execute(kibana, request);
@@ -66,9 +75,13 @@ public class Utils {
       }
     }
   }
+  public static void deleteKibanaIndexPattern(String projectName, String indexPattern, CloseableHttpClient httpClient,
+      HttpHost kibana) throws IOException {
+    deleteKibanaIndexPattern(projectName, indexPattern, httpClient, kibana, null);
+  }
   
   public static void deleteKibanaIndexPattern(String projectName, String indexPattern, CloseableHttpClient httpClient,
-    HttpHost kibana) throws IOException {
+    HttpHost kibana, String token) throws IOException {
     String projectIndexPattern = projectName + indexPattern;
     String deleteIndexPatternPath = "/api/saved_objects/index-pattern/" + projectIndexPattern;
     
@@ -77,6 +90,10 @@ public class Utils {
       HttpDelete request = new HttpDelete(deleteIndexPatternPath);
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       request.addHeader("kbn-xsrf", "required");
+  
+      if(token != null){
+        request.addHeader(HttpHeaders.AUTHORIZATION, token);
+      }
       
       LOGGER.info("Deleting index pattern: " + projectIndexPattern);
       response = httpClient.execute(kibana, request);

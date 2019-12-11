@@ -68,4 +68,8 @@ public class ExpatConf {
   public static final String LDAP_PRINCIPAL = LDAP_PREFIX + "principal";
   public static final String LDAP_CREDENTIALS = LDAP_PREFIX + "credentials";
   public static final String LDAP_BASE_DN_KEY = LDAP_PREFIX + "base-dn";
+  
+  public static final String HOPSWORKS_PREFIX = "hopsworks.";
+  public static final String HOPSWORKS_URL  = HOPSWORKS_PREFIX + "url";
+  public static final String HOPSWORKS_SERVICE_JWT  = HOPSWORKS_PREFIX + "serviceJwt";
 }

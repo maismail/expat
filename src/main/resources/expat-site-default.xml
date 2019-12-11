@@ -19,6 +19,7 @@
 <expat>
     <expat>
         <dir>/</dir>
+        <dry_run>false</dry_run>
     </expat>
 
     <database>
@@ -44,6 +45,11 @@
         <keyFile></keyFile>
         <keyPwd></keyPwd>
     </kube>
+
+    <hopsworks>
+        <url>https://localhost:8181</url>
+        <serviceJwt></serviceJwt>
+    </hopsworks>
 
     <x509>
         <masterPwdFile>/srv/hops/certs-dir/encryption_master_password</masterPwdFile>
@@ -86,5 +92,9 @@
     <version-10>
         io.hops.hopsworks.expat.migrations.elk.BeamKibana
     </version-10>
+
+    <version-11>
+        io.hops.hopsworks.expat.migrations.elk.MultiTenantKibana
+    </version-11>
 </expat>
 
