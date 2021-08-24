@@ -130,6 +130,20 @@ public abstract class ExpatAbstractFacade<E extends ExpatAbstractEntity> {
     }
   }
   
+  public void updateBatch(String[] statements) throws SQLException {
+    Statement statement = getConnection().createStatement();
+    try {
+      for (String s : statements) {
+        statement.addBatch(s);
+      }
+      statement.executeBatch();
+    } finally {
+      if (statement != null) {
+        statement.close();
+      }
+    }
+  }
+  
   public void closeConnection() throws SQLException {
     if (this.getConnection() != null) {
       this.getConnection().close();
