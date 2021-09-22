@@ -36,8 +36,7 @@ public class ExpatUserFacade {
   private final static String GET_LOCAL_USERS = "SELECT * FROM users WHERE mode = 0";
   private final static String GET_USER_BY_USERNAME = "SELECT * FROM users WHERE username = ?";
   private final static String GET_USER_BY_EMAIL = "SELECT * FROM users WHERE email = ?";
-  private final static String GET_ADDRESS_BY_UID = "SELECT * FROM address WHERE uid = ?";
-  private final static String GET_ORGANIZATION_BY_UID = "SELECT * FROM organization WHERE uid = ?";
+  private final static String GET_USER_BY_UID = "SELECT * FROM users WHERE uid = ?";
 
   private final static String UPDATE_PWD = "UPDATE users SET password = ? WHERE uid = ?";
   private final static String UPDATE_MODE = "UPDATE users SET mode = ? WHERE uid = ?";
@@ -51,6 +50,11 @@ public class ExpatUserFacade {
                                           String email) throws SQLException {
     return getSingleExpatUser(connection, GET_USER_BY_EMAIL, email);
   }
+  
+  public ExpatUser getExpatUserByUid(Connection connection,
+    int uid) throws SQLException {
+    return getSingleExpatUser(connection, GET_USER_BY_UID, String.valueOf(uid));
+  }
 
   private ExpatUser getSingleExpatUser(Connection connection,
                                        String query, String param) throws SQLException{
@@ -60,7 +64,7 @@ public class ExpatUserFacade {
       userRS = stmt.executeQuery();
 
       if (userRS.next()) {
-        return getExpatUser(connection, userRS);
+        return getExpatUser(userRS);
       } else {
         return null;
       }
@@ -79,7 +83,7 @@ public class ExpatUserFacade {
     try (PreparedStatement stmt = connection.prepareStatement(GET_USERS)) {
       userRS = stmt.executeQuery();
       while (userRS.next()) {
-        result.add(getExpatUser(connection, userRS));
+        result.add(getExpatUser(userRS));
       }
     } finally {
       if (userRS != null) {
@@ -97,7 +101,7 @@ public class ExpatUserFacade {
     try (PreparedStatement stmt = connection.prepareStatement(GET_LOCAL_USERS)) {
       userRS = stmt.executeQuery();
       while (userRS.next()) {
-        result.add(getExpatUser(connection, userRS));
+        result.add(getExpatUser(userRS));
       }
     } finally {
       if (userRS != null) {
@@ -108,53 +112,14 @@ public class ExpatUserFacade {
     return result;
   }
 
-  private ExpatUser getExpatUser(Connection connection,
-                                 ResultSet userRS) throws SQLException {
-    PreparedStatement addressStmt = null, orgStmt = null;
-    ResultSet addressRS = null, orgRS = null;
-
-    try {
-      int uid = userRS.getInt("uid");
-      String email = userRS.getString("email");
-      String orcid = userRS.getString("orcid");
-      String userPassword = userRS.getString("password");
-      String username = userRS.getString("username");
-      String salt = userRS.getString("salt");
-
-      addressStmt = connection.prepareStatement(GET_ADDRESS_BY_UID);
-      addressStmt.setInt(1, uid);
-      addressRS = addressStmt.executeQuery();
-      String country = "";
-      String city = "";
-      if (addressRS.next()) {
-        country = addressRS.getString("country");
-        city = addressRS.getString("city");
-      }
-
-
-      orgStmt = connection.prepareStatement(GET_ORGANIZATION_BY_UID);
-      orgStmt.setInt(1, uid);
-      orgRS = orgStmt.executeQuery();
-      String organization = "";
-      if (orgRS.next()) {
-        organization = orgRS.getString("org_name");
-      }
-
-      return new ExpatUser(uid, username, userPassword, email, orcid, organization, country, city, salt);
-    } finally {
-      if (addressRS != null) {
-        addressRS.close();
-      }
-      if (orgRS != null) {
-        orgRS.close();
-      }
-      if (addressStmt != null) {
-        addressStmt.close();
-      }
-      if (orgStmt != null) {
-        orgStmt.close();
-      }
-    }
+  private ExpatUser getExpatUser(ResultSet userRS) throws SQLException {
+    int uid = userRS.getInt("uid");
+    String email = userRS.getString("email");
+    String userPassword = userRS.getString("password");
+    String username = userRS.getString("username");
+    String salt = userRS.getString("salt");
+  
+    return new ExpatUser(uid, username, userPassword, email, salt);
   }
 
   public void updateUserPassword(Connection connection,

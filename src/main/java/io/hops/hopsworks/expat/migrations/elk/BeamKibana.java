@@ -16,7 +16,6 @@
  */
 package io.hops.hopsworks.expat.migrations.elk;
 
-import io.hops.hopsworks.common.util.Settings;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
@@ -52,6 +51,12 @@ public class BeamKibana implements MigrateStep {
   
   private static final String GET_PROJECT_NAMES = "SELECT projectname FROM project ORDER BY projectname ASC";
   
+  public static final String ELASTIC_BEAMJOBSERVER = "beamjobserver";
+  public static final String ELASTIC_BEAMSDKWORKER = "beamsdkworker";
+  public static final String ELASTIC_SERVING_INDEX = "serving";
+  public static final String ELASTIC_BEAMJOBSERVER_INDEX_PATTERN = "_" + ELASTIC_BEAMJOBSERVER + "-*";
+  public static final String ELASTIC_BEAMSDKWORKER_INDEX_PATTERN = "_" + ELASTIC_BEAMSDKWORKER + "-*";
+  public static final String ELASTIC_SERVING_INDEX_PATTERN = "_" + ELASTIC_SERVING_INDEX + "-*";
   
   private Connection connection;
   private static PoolingHttpClientConnectionManager httpConnectionManager;
@@ -82,15 +87,15 @@ public class BeamKibana implements MigrateStep {
       // Create Kibana index template
       for (String projectName : projects) {
         try {
-          Utils.createKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN, httpClient, kibana);
+          Utils.createKibanaIndexPattern(projectName, ELASTIC_BEAMJOBSERVER_INDEX_PATTERN, httpClient, kibana);
         } catch (IOException ex) {
-          LOGGER.error("Ooops could not create index-pattern" + Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN + " for " +
+          LOGGER.error("Ooops could not create index-pattern" + ELASTIC_BEAMJOBSERVER_INDEX_PATTERN + " for " +
             projectName + " Moving on...", ex);
         }
         try {
-          Utils.createKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN, httpClient, kibana);
+          Utils.createKibanaIndexPattern(projectName, ELASTIC_BEAMSDKWORKER_INDEX_PATTERN, httpClient, kibana);
         } catch (IOException ex) {
-          LOGGER.error("Ooops could not create index-pattern" + Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN + " for " +
+          LOGGER.error("Ooops could not create index-pattern" + ELASTIC_BEAMJOBSERVER_INDEX_PATTERN + " for " +
             projectName + " Moving on...", ex);
         }
       }
@@ -141,12 +146,12 @@ public class BeamKibana implements MigrateStep {
       
       for (String projectName : projects) {
         try {
-          Utils.deleteKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN, httpClient, kibana);
+          Utils.deleteKibanaIndexPattern(projectName, ELASTIC_BEAMJOBSERVER_INDEX_PATTERN, httpClient, kibana);
         } catch (IOException ex) {
           LOGGER.error("Ooops could not delete index-pattern for " + projectName + " Moving on...", ex);
         }
         try {
-          Utils.deleteKibanaIndexPattern(projectName, Settings.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN, httpClient, kibana);
+          Utils.deleteKibanaIndexPattern(projectName, ELASTIC_BEAMSDKWORKER_INDEX_PATTERN, httpClient, kibana);
         } catch (IOException ex) {
           LOGGER.error("Ooops could not delete index-pattern for " + projectName + " Moving on...", ex);
         }

@@ -112,9 +112,9 @@ public class MultiTenantKibana implements MigrateStep {
         
         String[] indexPatterns = {Settings.ELASTIC_LOGS_INDEX_PATTERN,
             Utils.ELASTIC_KAGENT_INDEX_PATTERN,
-            Settings.ELASTIC_SERVING_INDEX_PATTERN,
-            Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN,
-            Settings.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN};
+            BeamKibana.ELASTIC_SERVING_INDEX_PATTERN,
+            BeamKibana.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN,
+            BeamKibana.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN};
         
         for(String indexPattern : indexPatterns){
           try {
@@ -144,9 +144,9 @@ public class MultiTenantKibana implements MigrateStep {
       
         String[] indexPatterns = {Settings.ELASTIC_LOGS_INDEX_PATTERN,
             Utils.ELASTIC_KAGENT_INDEX_PATTERN,
-            Settings.ELASTIC_SERVING_INDEX_PATTERN,
-            Settings.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN,
-            Settings.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN};
+            BeamKibana.ELASTIC_SERVING_INDEX_PATTERN,
+            BeamKibana.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN,
+            BeamKibana.ELASTIC_BEAMSDKWORKER_INDEX_PATTERN};
       
         for(String indexPattern : indexPatterns){
           try {

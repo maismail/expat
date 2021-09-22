@@ -26,6 +26,10 @@ public class ExpatVariables extends ExpatAbstractEntity<ExpatVariables> {
   private String id;
   private String value;
   private VariablesVisibility visibility;
+  private VariablesVisibility[] variablesVisibilityValues;
+  
+  public ExpatVariables() {
+  }
   
   public ExpatVariables(String id, String value, VariablesVisibility visibility) {
     this.id = id;
@@ -61,7 +65,9 @@ public class ExpatVariables extends ExpatAbstractEntity<ExpatVariables> {
   public ExpatVariables getEntity(ResultSet resultSet) throws SQLException {
     this.id = resultSet.getString("id");
     this.value = resultSet.getString("value");
-    this.visibility = VariablesVisibility.valueOf(resultSet.getString("visibility"));
+    if (variablesVisibilityValues == null)
+      variablesVisibilityValues = VariablesVisibility.values();
+    this.visibility = variablesVisibilityValues[resultSet.getInt("visibility")];
     return this;
   }
 }

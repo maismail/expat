@@ -21,22 +21,13 @@ public class ExpatUser {
   private String username;
   private String password;
   private String email;
-  private String orcid;
-  private String organization;
-  private String country;
-  private String city;
   private String salt;
   
-  public ExpatUser(int uid, String username, String password, String email, String orcid, String organization,
-      String country, String city, String salt) {
+  public ExpatUser(int uid, String username, String password, String email, String salt) {
     this.uid = uid;
     this.username = username;
     this.password = password;
     this.email = email;
-    this.orcid = orcid;
-    this.organization = organization;
-    this.country = country;
-    this.city = city;
     this.salt = salt;
   }
 
@@ -56,22 +47,6 @@ public class ExpatUser {
     return email;
   }
   
-  public String getOrcid() {
-    return orcid;
-  }
-  
-  public String getOrganization() {
-    return organization;
-  }
-  
-  public String getCountry() {
-    return country;
-  }
-  
-  public String getCity() {
-    return city;
-  }
-
   public String getSalt() {
     return salt;
   }
