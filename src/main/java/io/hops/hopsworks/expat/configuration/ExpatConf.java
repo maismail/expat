@@ -82,8 +82,18 @@ public class ExpatConf {
       "services-logs-user";
   public static final String ELASTIC_SERVICES_PASS_KEY = ELASTIC_PREFIX +
       "services-logs-pass";
+  public static final String ELASTIC_SNAPSHOT = ELASTIC_PREFIX + "snapshot.";
+  public static final String ELASTIC_SNAPSHOT_REPO = ELASTIC_SNAPSHOT + "repo.";
+  public static final String ELASTIC_SNAPSHOT_REPO_NAME = ELASTIC_SNAPSHOT_REPO + "name";
+  public static final String ELASTIC_SNAPSHOT_REPO_LOCATION = ELASTIC_SNAPSHOT_REPO + "location";
+  public static final String ELASTIC_SNAPSHOT_NAME = ELASTIC_SNAPSHOT + "name";
+  public static final String ELASTIC_SNAPSHOT_INDICES = ELASTIC_SNAPSHOT + "indices";
+  public static final String ELASTIC_SNAPSHOT_IGNORE_UNAVAILABLE = ELASTIC_SNAPSHOT + "ignoreUnavailable";
   
   // ------ Hops Configuration ------ //
   private static final String HOPS_PREFIX = "hops.";
   public static final String HOPS_CLIENT_USER = HOPS_PREFIX + "client.user";
+  // ------ Epipe Configuration ------ //
+  public static final String EPIPE_PATH = "epipe.path";
+  public static final String EPIPE_REINDEX = "epipe.reindex";
 }

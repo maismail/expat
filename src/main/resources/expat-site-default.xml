@@ -77,6 +77,16 @@
         <pass></pass>
         <services-logs-user></services-logs-user>
         <services-logs-pass></services-logs-pass>
+        <snapshot>
+            <repo>
+                <name></name>
+                <location></location>
+            </repo>
+            <name></name>
+            <!-- repeated section for multiple indices -->
+            <indices></indices>
+            <ignoreUnavailable></ignoreUnavailable>
+        </snapshot>
     </elastic>
 
     <hops>
@@ -84,6 +94,10 @@
             <user></user>
         </client>
     </hops>
+
+    <epipe>
+        <path></path>
+    </epipe>
 
     <version-06>
         io.hops.hopsworks.expat.migrations.kubernetes.CreateNS
@@ -138,5 +152,8 @@
         io.hops.hopsworks.expat.migrations.alertmanager.FixAlertManagerReceiver
         io.hops.hopsworks.expat.migrations.elk.ServicesLogs
     </version-24>
+    <version-25>
+        io.hops.hopsworks.expat.migrations.elk.BaseIndexTemplateMigrate
+    </version-25>
 </expat>
 
