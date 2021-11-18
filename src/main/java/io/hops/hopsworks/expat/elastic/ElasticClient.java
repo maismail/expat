@@ -46,12 +46,12 @@ public class ElasticClient {
   private final static Logger LOGGER = LogManager.getLogger(ElasticClient.class);
   
   public static void deleteProvenanceProjectIndex(CloseableHttpClient httpClient, HttpHost elastic, Long projectIId,
-    String elasticUser, String elasticPass) throws IOException {
+                                                  String elasticUser, String elasticPass) throws IOException {
     deleteIndex(httpClient, elastic, elasticUser, elasticPass, projectIId + "__file_prov");
   }
   
   public static void deleteAppProvenanceIndex(CloseableHttpClient httpClient, HttpHost elastic,
-    String elasticUser, String elasticPass) throws IOException {
+                                              String elasticUser, String elasticPass) throws IOException {
     deleteIndex(httpClient, elastic, elasticUser, elasticPass, "app_prov");
   }
   
@@ -85,7 +85,7 @@ public class ElasticClient {
   }
   
   public static void deleteIndex(CloseableHttpClient httpClient, HttpHost elastic,
-    String elasticUser, String elasticPass, String index) throws IOException {
+                                 String elasticUser, String elasticPass, String index) throws IOException {
     CloseableHttpResponse response = null;
     try {
       HttpDelete request = new HttpDelete(index);
@@ -111,28 +111,50 @@ public class ElasticClient {
     }
   }
   
-  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic,
-    String elasticUser, String elasticPass, String fromIndex, String toIndex) throws IOException {
+  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
+                             String fromIndex, String toIndex)
+      throws IOException, URISyntaxException {
+    reindex(httpClient, elastic, elasticUser, elasticPass, fromIndex, toIndex, Optional.empty());
+  }
+  
+  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
+                            String fromIndex, String toIndex, String script)
+      throws IOException, URISyntaxException {
+    reindex(httpClient, elastic, elasticUser, elasticPass, fromIndex, toIndex, Optional.of(script));
+  }
+  
+  public static void reindex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser, String elasticPass,
+                             String fromIndex, String toIndex, Optional<String> script)
+    throws IOException, URISyntaxException {
     CloseableHttpResponse response = null;
     try {
-      HttpPost request = new HttpPost("_reindex");
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments("_reindex")
+        .setParameter("wait_for_completion", "true")
+        .setParameter("refresh", "true");
+      HttpPost request = new HttpPost(uriBuilder.build());
       request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
       String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
       request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
-      HttpEntity entity = new ByteArrayEntity(getReindexBody(fromIndex, toIndex).getBytes(StandardCharsets.UTF_8));
+      String requestBody = getReindexBody(fromIndex, toIndex, script);
+      HttpEntity entity = new ByteArrayEntity(requestBody.getBytes(StandardCharsets.UTF_8));
       request.setEntity(entity);
+      
       LOGGER.info("Reindexing from:{} to:{}", fromIndex, toIndex);
       response = httpClient.execute(elastic, request);
       JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      LOGGER.info("Response:{}", jsonResponse);
       int status = response.getStatusLine().getStatusCode();
       if (status == 200) {
-        LOGGER.info("Reindexed from:{} to:{}", fromIndex, toIndex);
+        if(jsonResponse.getJSONArray("failures").length() != 0) {
+          throw new IllegalStateException("failed to reindex:" + jsonResponse.getJSONArray("failures"));
+        }
       } else {
-        if (!jsonResponse.getJSONObject("error").get("reason").toString().startsWith("no such index")) {
+        if (jsonResponse.getJSONObject("error").get("reason").toString().startsWith("no such index")) {
           throw new IllegalStateException("Could not reindex - indices do not exist");
         } else {
-          throw new IllegalStateException("Could not reindex - unknown elastic error:"
-            + jsonResponse.getJSONObject("error").get("reason"));
+          throw new IllegalStateException("Could not reindex:" + jsonResponse.getJSONObject("error").get("reason"));
         }
       }
     } finally {
@@ -142,15 +164,24 @@ public class ElasticClient {
     }
   }
   
-  private static String getReindexBody(String fromIndex, String toIndex) {
-    JsonObject body = new JsonObject();
-    JsonObject source = new JsonObject();
-    JsonObject dest = new JsonObject();
-    body.add("source", source);
-    body.add("dest", dest);
-    source.addProperty("index", fromIndex);
-    dest.addProperty("index", toIndex);
-    return new GsonBuilder().create().toJson(body);
+  private static String getReindexBody(String fromIndex, String toIndex, Optional<String> script) {
+    JsonObject bodyJson = new JsonObject();
+    JsonObject sourceJson = new JsonObject();
+    bodyJson.add("source", sourceJson);
+    sourceJson.addProperty("index", fromIndex);
+    
+    JsonObject destJson = new JsonObject();
+    bodyJson.add("dest", destJson);
+    destJson.addProperty("index", toIndex);
+    
+    if(script.isPresent()) {
+      JsonObject scriptJson = new JsonObject();
+      bodyJson.add("script", scriptJson);
+      scriptJson.addProperty("lang", "painless");
+      scriptJson.addProperty("source", script.get());
+    }
+    
+    return new GsonBuilder().create().toJson(bodyJson);
   }
   
   public static void createTemplate(CloseableHttpClient httpClient, HttpHost elastic,
@@ -409,7 +440,7 @@ public class ElasticClient {
   
   public static void takeSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
                                   String elasticPass, String repoName, String snapshotName, boolean ignoreUnavailable,
-                                  String[] indices)
+                                  String... indices)
     throws URISyntaxException, IOException {
     CloseableHttpResponse response = null;
     try {

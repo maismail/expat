@@ -41,11 +41,6 @@ import org.elasticsearch.common.CheckedBiConsumer;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
-import javax.xml.transform.stream.StreamSource;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -103,7 +98,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
   JAXBContext jaxbContext;
   boolean dryrun = false;
   
-  private void setup() throws ConfigurationException, SQLException, JAXBException {
+  public void setup() throws ConfigurationException, SQLException, JAXBException {
     formatter = new SimpleDateFormat("yyyy-M-dd hh:mm:ss", Locale.ENGLISH);
     jaxbContext = jaxbContext();
     
@@ -127,6 +122,15 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     }
   }
   
+  public JAXBContext getJaxbContext() throws JAXBException {
+    if (jaxbContext != null) {
+      return jaxbContext;
+    }
+    
+    jaxbContext = jaxbContext();
+    return jaxbContext;
+  }
+
   @Override
   public void migrate() throws MigrationException {
     LOGGER.info("featuregroup search migration");
@@ -219,18 +223,18 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       String creator = getCreator(allFSFeaturegroupsResultSet);
       List<String> features = getFeatures(allFSFeaturegroupsResultSet);
       FeaturegroupXAttr.FullDTO xattr
-        = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator, features);
-      byte[] val = jaxbMarshal(jaxbContext, xattr).getBytes();
+        = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate.getTime(), creator, features);
+      byte[] val = FeaturegroupXAttr.jaxbMarshal(jaxbContext, xattr).getBytes();
       if (val.length > 13500) {
         LOGGER.warn("xattr too large - skipping attaching features to featuregroup:{}", featuregroupPath);
-        xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator);
+        xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate.getTime(), creator);
       }
     
       byte[] existingVal = dfso.getXAttr(new Path(featuregroupPath), "provenance.featurestore");
       if(existingVal == null) {
         LOGGER.info("featuregroup:{} rollbacked (no value)", featuregroupPath);
       } else {
-        FeaturegroupXAttr.FullDTO existingXAttr = jaxbUnmarshal(jaxbContext, existingVal);
+        FeaturegroupXAttr.FullDTO existingXAttr = FeaturegroupXAttr.jaxbUnmarshal(jaxbContext, existingVal);
         if(existingXAttr.equals(xattr)) {
           LOGGER.info("featuregroup:{} migrated (correct value)", featuregroupPath);
         } else {
@@ -240,7 +244,7 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
     };
   }
   
-  private CheckedBiConsumer<ResultSet, ResultSet, Exception> migrateFeaturegroup() {
+  public CheckedBiConsumer<ResultSet, ResultSet, Exception> migrateFeaturegroup() {
     return (ResultSet allFeaturestoresResultSet, ResultSet allFSFeaturegroupsResultSet) -> {
       String projectName = getProjectName(allFeaturestoresResultSet);
       String featuregroupName = allFSFeaturegroupsResultSet.getString(GET_HIVE_MANAGED_FEATUREGROUPS_S_NAME);
@@ -260,12 +264,12 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       String creator = getCreator(allFSFeaturegroupsResultSet);
       List<String> features = getFeatures(allFSFeaturegroupsResultSet);
       FeaturegroupXAttr.FullDTO xattr
-        = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator, features);
-      byte[] val = jaxbMarshal(jaxbContext, xattr).getBytes();
+        = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate.getTime(), creator, features);
+      byte[] val = FeaturegroupXAttr.jaxbMarshal(jaxbContext, xattr).getBytes();
       if (val.length > 13500) {
         LOGGER.warn("xattr too large - skipping attaching features to featuregroup:{}", featuregroupPath);
-        xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate, creator);
-        val = jaxbMarshal(jaxbContext, xattr).getBytes();
+        xattr = new FeaturegroupXAttr.FullDTO(featurestoreId, description, createDate.getTime(), creator);
+        val = FeaturegroupXAttr.jaxbMarshal(jaxbContext, xattr).getBytes();
       }
       try{
         XAttrHelper.upsertProvXAttr(dfso, featuregroupPath, "featurestore", val);
@@ -401,19 +405,6 @@ public class UpdateFeaturegroupsForSearch implements MigrateStep {
       },
       properties);
     return context;
-  }
-  
-  private FeaturegroupXAttr.FullDTO jaxbUnmarshal(JAXBContext jaxbContext, byte[] val) throws JAXBException {
-    Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
-    StreamSource ss = new StreamSource(new StringReader(new String(val)));
-    return unmarshaller.unmarshal(ss, FeaturegroupXAttr.FullDTO.class).getValue();
-  }
-  
-  private String jaxbMarshal(JAXBContext jaxbContext, FeaturegroupXAttr.FullDTO xattr) throws JAXBException {
-    Marshaller marshaller = jaxbContext.createMarshaller();
-    StringWriter sw = new StringWriter();
-    marshaller.marshal(xattr, sw);
-    return sw.toString();
   }
   
   private String getFeaturegroupPath(String project, String featuregroup, int version) {
