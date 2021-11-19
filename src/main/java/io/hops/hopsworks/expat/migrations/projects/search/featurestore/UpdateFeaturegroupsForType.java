@@ -50,7 +50,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -228,9 +227,8 @@ public class UpdateFeaturegroupsForType implements MigrateStep {
       byte[] val = jaxbMarshal(jaxbContext, xattr).getBytes();
       if (val.length > 13500) {
         LOGGER.warn("xattr too large - skipping attaching features to featuregroup:{}", featuregroupPath);
-        Date createDate = new Date(xattr.getCreateDate());
         xattr = new FeaturegroupXAttr.FullDTO(
-                xattr.getFeaturestoreId(), xattr.getDescription(), createDate, xattr.getCreator());
+                xattr.getFeaturestoreId(), xattr.getDescription(), xattr.getCreateDate(), xattr.getCreator());
         val = jaxbMarshal(jaxbContext, xattr).getBytes();
       }
       try{
