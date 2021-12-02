@@ -46,9 +46,11 @@ public class InferenceSchemaV4Migration implements MigrateStep {
     "WHERE subject = ?";
   private final static String UPDATE_SUBJECT_COMPATIBILITY = "UPDATE subjects_compatibility SET compatibility = ? " +
     "WHERE id = ?";
-  private final static String INSERT_SUBJECT = "INSERT INTO subjects (subject, version, schema_id, project_id) VALUES" +
+  private final static String INSERT_SUBJECT = "REPLACE INTO subjects " +
+      "(subject, version, schema_id, project_id) VALUES" +
     " (?, ?, ?, ?)";
-  private final static String INSERT_SCHEMA = "INSERT INTO `schemas` (`schema`, project_id) VALUES (?, ?)";
+  private final static String INSERT_SCHEMA = "REPLACE INTO `schemas` " +
+      "(`schema`, project_id) VALUES (?, ?)";
   private final static String GET_SCHEMA = "SELECT id FROM `schemas` WHERE `schema` = ? AND project_id = ?";
   private final static String DELETE_SUBJECT = "DELETE FROM subjects WHERE subject = ? AND version = ? AND project_id" +
     " = ?";

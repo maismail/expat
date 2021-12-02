@@ -249,8 +249,13 @@ public class ModelArtifactMigration implements MigrateStep {
   }
   
   private void deleteOldArtifacts(String projectName, DistributedFileSystemOps dfso) throws IOException {
+    Path modelsPath = new Path(String.format(MODELS_PATH, projectName));
+    if(!dfso.exists(modelsPath)){
+      LOGGER.info("Project " + projectName + " doesn't have models directory.");
+      return;
+    }
     // -- per model
-    for (FileStatus modelDir : dfso.listStatus(new Path(String.format(MODELS_PATH, projectName)))) {
+    for (FileStatus modelDir : dfso.listStatus(modelsPath)) {
       if (!modelDir.isDirectory()) {
         continue; // ignore files
       }
@@ -284,8 +289,13 @@ public class ModelArtifactMigration implements MigrateStep {
   }
   
   private void deleteNewArtifacts(String projectName, DistributedFileSystemOps dfso) throws IOException {
+    Path modelsPath = new Path(String.format(MODELS_PATH, projectName));
+    if(!dfso.exists(modelsPath)){
+      LOGGER.info("Project " + projectName + " doesn't have models directory.");
+      return;
+    }
     // -- per model
-    for (FileStatus modelDir : dfso.listStatus(new Path(String.format(MODELS_PATH, projectName)))) {
+    for (FileStatus modelDir : dfso.listStatus(modelsPath)) {
       if (!modelDir.isDirectory()) {
         continue; // ignore files
       }
