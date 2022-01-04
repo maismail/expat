@@ -21,7 +21,6 @@ import io.hops.hopsworks.common.util.ProcessResult;
 import io.hops.hopsworks.common.util.StreamGobbler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.async.DaemonThreadFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -44,8 +43,7 @@ public final class ProcessExecutor {
   private static ProcessExecutor instance;
   
   private ProcessExecutor() {
-    executorService = Executors.newFixedThreadPool(EXECUTOR_THREADS,
-        new DaemonThreadFactory("ProcessExecutor"));
+    executorService = Executors.newFixedThreadPool(EXECUTOR_THREADS);
   }
   
   public static ProcessExecutor getExecutor() {
