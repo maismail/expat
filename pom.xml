@@ -123,6 +123,10 @@
                     <groupId>com.zaxxer</groupId>
                     <artifactId>HikariCP-java6</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
     </dependencies>
