@@ -347,7 +347,7 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
     return (ResultSet allFSResultSet, ResultSet allFSCachedFGResultSet) -> {
       String fgPath = getCachedFGPath(allFSResultSet, allFSCachedFGResultSet);
       if(fgPath == null) {
-        LOGGER.error("faulty on demand featuregroup:{}", fgPath);
+        LOGGER.error("faulty cached featuregroup:{}", fgPath);
       } else {
         PreparedStatement insertCachedFeaturesStmt = connection.prepareStatement(INSERT_CACHED_FG_DESC);
         LOGGER.info("cached featuregroup:{}", fgPath);
@@ -605,10 +605,10 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
         int fgId =  allFSCachedFResultSet.getInt(GET_HIVE_MANAGED_FEATUREGROUPS_S_ID);
         String featureName = fgFeaturesResultSet.getString(GET_FG_FEATURES_S_NAME);
         String featureDesc = fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT);
-        
-        features.add(fgFeaturesResultSet.getString(GET_FG_FEATURES_S_COMMENT) != null ?
-          new FeaturegroupXAttrV2.SimpleFeatureDTO(featureName, featureDesc) :
-          new FeaturegroupXAttrV2.SimpleFeatureDTO(featureName));
+        if(featureDesc == null) {
+          featureDesc = "";
+        }
+        features.add(new FeaturegroupXAttrV2.SimpleFeatureDTO(featureName, featureDesc));
         insertCachedFeature(insertCachedFStmt, fgId, featureName, featureDesc);
       }
       return features;
@@ -631,7 +631,9 @@ public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
       while (featuresResultSet.next()) {
         String featureName = featuresResultSet.getString(GET_ON_DEMAND_FG_FEATURES_S_NAME);
         String featureDesc = featuresResultSet.getString(GET_ON_DEMAND_FG_FEATURES_S_DESCRIPTION);
-        
+        if(featureDesc == null) {
+          featureDesc = "";
+        }
         features.add(new FeaturegroupXAttrV2.SimpleFeatureDTO(featureName, featureDesc));
       }
       return features;
