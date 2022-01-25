@@ -72,9 +72,9 @@ public class ServingApiKeysMigration implements MigrateStep {
   private final static String GET_API_KEY_WITH_SERVING_BY_USER = "SELECT prefix, secret, salt, created, `name` FROM " +
     "api_key WHERE user_id = ? AND reserved = 0 AND id IN (SELECT api_key FROM api_key_scope WHERE `scope` = " +
     "'SERVING')";
-  private final static String INSERT_API_KEY = "INSERT INTO api_key (prefix, secret, salt, created, " +
+  private final static String INSERT_API_KEY = "REPLACE INTO api_key (prefix, secret, salt, created, " +
     "modified, `name`, user_id, reserved) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-  private final static String INSERT_API_KEY_SCOPE = "INSERT INTO api_key_scope (api_key, `scope`) VALUES (?, ?)";
+  private final static String INSERT_API_KEY_SCOPE = "REPLACE INTO api_key_scope (api_key, `scope`) VALUES (?, ?)";
   private final static String DELETE_API_KEY_SCOPES = "DELETE FROM api_key_scope WHERE api_key = ?";
   private final static String DELETE_API_KEYS = "DELETE FROM api_key WHERE id = ?";
   
@@ -120,6 +120,9 @@ public class ServingApiKeysMigration implements MigrateStep {
     PreparedStatement getProjectsByUserStmt = null;
     PreparedStatement getApiKeyByPrefixStmt = null;
     PreparedStatement getApiKeyWithServingByUserStmt = null;
+    PreparedStatement deleteApiKeyScopesStmt = null;
+    PreparedStatement deleteApiKeysStmt = null;
+    PreparedStatement getApiKeyByNameStmt = null;
     try {
       connection.setAutoCommit(false);
       
@@ -155,6 +158,9 @@ public class ServingApiKeysMigration implements MigrateStep {
         insertServingApiKeyStmt = connection.prepareStatement(INSERT_API_KEY, Statement.RETURN_GENERATED_KEYS);
         insertServingApiKeyScopesStmt = connection.prepareStatement(INSERT_API_KEY_SCOPE);
         getApiKeyByPrefixStmt = connection.prepareStatement(GET_API_KEY_BY_PREFIX);
+        deleteApiKeyScopesStmt = connection.prepareStatement(DELETE_API_KEY_SCOPES);
+        deleteApiKeysStmt = connection.prepareStatement(DELETE_API_KEYS);
+        getApiKeyByNameStmt = connection.prepareStatement(GET_API_KEY_BY_NAME);
         
         // -- per activated user
         getActivatedUsersStmt = connection.prepareStatement(GET_ACTIVATED_USERS);
@@ -177,6 +183,10 @@ public class ServingApiKeysMigration implements MigrateStep {
           Triplet<String, String, String> secret = generateApiKey(getApiKeyByPrefixStmt);
           String hash = DigestUtils.sha256Hex(secret.getValue1() + secret.getValue2());
           
+          // -- delete api key and api key scopes if it exists
+          // api_key can't be updated (ON UPDATE NO ACTION),to ensure idempotence first we delete possible existing keys
+          deleteServingApiKey(uid, name, getApiKeyByNameStmt, deleteApiKeyScopesStmt, deleteApiKeysStmt, false);
+          
           // -- insert api key and api key scope
           insertServingApiKey(uid, name, secret, hash, sqlDate, insertServingApiKeyStmt, insertServingApiKeyScopesStmt);
           
@@ -197,7 +207,8 @@ public class ServingApiKeysMigration implements MigrateStep {
       throw new MigrationException(errorMsg, ex);
     } finally {
       closeConnections(updateApiKeyScopesStmt, getActivatedUsersStmt, insertServingApiKeyStmt,
-        insertServingApiKeyScopesStmt, getProjectsByUserStmt, getApiKeyByPrefixStmt, getApiKeyWithServingByUserStmt);
+        insertServingApiKeyScopesStmt, getProjectsByUserStmt, getApiKeyByPrefixStmt, getApiKeyWithServingByUserStmt,
+        deleteApiKeyScopesStmt, deleteApiKeysStmt, getApiKeyByNameStmt);
       if (kubeClient != null) { kubeClient.close(); }
     }
     LOGGER.info("Finished serving api keys migration");
@@ -265,7 +276,7 @@ public class ServingApiKeysMigration implements MigrateStep {
           
           // -- delete serving api key and scopes
           String name = getServingApiKeyName(username, uid);
-          deleteServingApiKey(uid, name, getApiKeyByNameStmt, deleteApiKeyScopesStmt, deleteApiKeysStmt);
+          deleteServingApiKey(uid, name, getApiKeyByNameStmt, deleteApiKeyScopesStmt, deleteApiKeysStmt, true);
           
           // -- delete all kube serving api key secrets
           deleteKubeSecrets(username);
@@ -328,7 +339,7 @@ public class ServingApiKeysMigration implements MigrateStep {
   }
   
   private void deleteServingApiKey(int uid, String name, PreparedStatement getApiKeyByNameStmt,
-    PreparedStatement deleteApiKeyScopesStmt, PreparedStatement deleteApiKeysStmt) throws SQLException {
+    PreparedStatement deleteApiKeyScopesStmt, PreparedStatement deleteApiKeysStmt, boolean batch) throws SQLException {
     getApiKeyByNameStmt.setString(1, name);
     getApiKeyByNameStmt.setInt(2, uid);
     ResultSet apiKeyResultSet = getApiKeyByNameStmt.executeQuery();
@@ -341,11 +352,19 @@ public class ServingApiKeysMigration implements MigrateStep {
     apiKeyResultSet.close();
     
     deleteApiKeyScopesStmt.setInt(1, apiKeyId);
-    deleteApiKeyScopesStmt.addBatch();
     deleteApiKeysStmt.setInt(1, apiKeyId);
-    deleteApiKeysStmt.addBatch();
     
-    LOGGER.info("Serving api key " + name + " of user " + uid + " queued for removal");
+    String msg;
+    if (batch) {
+      deleteApiKeyScopesStmt.addBatch();
+      deleteApiKeysStmt.addBatch();
+      msg = " queued for removal";
+    } else {
+      deleteApiKeyScopesStmt.execute();
+      deleteApiKeysStmt.execute();
+      msg = " removed";
+    }
+    LOGGER.info("Serving api key " + name + " of user " + uid + msg);
   }
   
   private void deleteKubeSecrets(String username) {
