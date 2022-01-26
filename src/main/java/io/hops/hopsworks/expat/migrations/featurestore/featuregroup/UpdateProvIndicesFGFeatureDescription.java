@@ -154,6 +154,7 @@ public class UpdateProvIndicesFGFeatureDescription implements MigrateStep {
           return new Try.Success<>("done");
         });
       } else {
+        EpipeRunner.waitForEpipeIdle(connection);
         EpipeRunner.stopEpipe();
         traverseProvIndices(processIndex("migrate", migrateScript));
         EpipeRunner.restartEpipe();

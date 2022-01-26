@@ -30,6 +30,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +47,8 @@ public class EpipeRunner {
   private static final String FEATURESTORE_INDEX = "featurestore";
   private static final String REINDEX_PROJECTS = REINDEX_PREFIX + "project";
   private static final String REINDEX_FEATURESTORE = REINDEX_PREFIX + FEATURESTORE_INDEX;
+  
+  private final static String GET_HDFS_FILE_PROV_LOG = "SELECT count(*) FROM hops.hdfs_file_provenance_log";
   
   
   private static void updateReindexConfig(String reindexConfigPath,
@@ -134,5 +140,38 @@ public class EpipeRunner {
     stopEpipe();
     reindex(httpClient, elastic, elasticUser, elasticPass, epipePath, reindexProjects, reindexFeaturestore);
     restartEpipe();
+  }
+  
+  public static void waitForEpipeIdle(Connection connection) throws InterruptedException, SQLException {
+    int retries = 15;
+    int waitime = 5000;
+    while(retries > 0) {
+      if(getFileProvLogsSize(connection) == 0) {
+        return;
+      }
+      LOGGER.info("waiting for epipe provenance log to be consumed");
+      Thread.sleep(waitime);
+      retries--;
+      waitime = waitime + 5000;
+    }
+    LOGGER.info("epipe too slow emptying provenance log");
+    throw new IllegalStateException("epipe too slow emptying provenance log");
+  }
+  
+  private static int getFileProvLogsSize(Connection connection) throws SQLException {
+    PreparedStatement fileProvLogsStmt = null;
+    try {
+      fileProvLogsStmt = connection.prepareStatement(GET_HDFS_FILE_PROV_LOG);
+      ResultSet allFSResultSet = fileProvLogsStmt.executeQuery();
+      if(allFSResultSet.next()) {
+        return allFSResultSet.getInt(1);
+      } else {
+        return -1;
+      }
+    } finally {
+      if(fileProvLogsStmt != null) {
+        fileProvLogsStmt.close();
+      }
+    }
   }
 }
