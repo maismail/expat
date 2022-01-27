@@ -33,6 +33,7 @@ import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -394,6 +395,9 @@ public class ModelArtifactMigration implements MigrateStep {
     if (dryRun) {
       LOGGER.info("Create local directory: " + localDir);
     } else {
+      if (zipDir.exists()) {
+        FileUtils.deleteDirectory(zipDir);
+      }
       if (!zipDir.mkdirs()) {
         throw new IOException("Local directory could not be created: " + localDir);
       }
