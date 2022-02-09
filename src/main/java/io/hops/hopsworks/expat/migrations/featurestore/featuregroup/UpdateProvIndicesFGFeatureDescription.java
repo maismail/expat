@@ -239,14 +239,18 @@ public class UpdateProvIndicesFGFeatureDescription implements MigrateStep {
   private Function<String, Try<String>> processIndex(String type, String script) {
     return (String indexName) -> {
       try {
-        LOGGER.info("{} prov index:{}", type, indexName);
-        ElasticClient.reindex(httpClient, elastic, elasticUser, elasticPass, indexName, "temp_" + indexName, script);
-        LOGGER.info("{} prov index:{} restructured mapping", type, indexName);
-        ElasticClient.deleteIndex(httpClient, elastic, elasticUser, elasticPass, indexName);
-        Thread.sleep(2000);
-        ElasticClient.reindex(httpClient, elastic, elasticUser, elasticPass, "temp_" + indexName, indexName);
-        ElasticClient.deleteIndex(httpClient, elastic, elasticUser, elasticPass, "temp_" + indexName);
-        LOGGER.info("{} prov index:{} completed", type, indexName);
+        if(!ElasticClient.indexExists(httpClient, elastic, elasticUser, elasticPass, indexName)) {
+          LOGGER.info("skipping project as prov index:{} does not exit", indexName);
+        } else {
+          LOGGER.info("{} prov index:{}", type, indexName);
+          ElasticClient.reindex(httpClient, elastic, elasticUser, elasticPass, indexName, "temp_" + indexName, script);
+          LOGGER.info("{} prov index:{} restructured mapping", type, indexName);
+          ElasticClient.deleteIndex(httpClient, elastic, elasticUser, elasticPass, indexName);
+          Thread.sleep(2000);
+          ElasticClient.reindex(httpClient, elastic, elasticUser, elasticPass, "temp_" + indexName, indexName);
+          ElasticClient.deleteIndex(httpClient, elastic, elasticUser, elasticPass, "temp_" + indexName);
+          LOGGER.info("{} prov index:{} completed", type, indexName);
+        }
         return new Try.Success<>("done");
       } catch(IOException | URISyntaxException | InterruptedException e) {
         return new Try.Failure<>(e);
