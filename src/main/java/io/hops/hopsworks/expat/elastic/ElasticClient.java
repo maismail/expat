@@ -264,8 +264,17 @@ public class ElasticClient {
       if (status == 200) {
         LOGGER.info("Checked index:{}", index);
         return true;
+      } else if(status == 404) {
+        LOGGER.info("Index:{} does not exist", index);
+        return false;
       } else {
-        throw new IllegalStateException("Could not check index existence - unknown elastic error");
+        String errorMsg = "Could not check index existence - ";
+        if(response.getStatusLine().getReasonPhrase() != null) {
+          errorMsg += response.getStatusLine().getReasonPhrase();
+        } else {
+          errorMsg += "unknown exception";
+        }
+        throw new IllegalStateException(errorMsg);
       }
     } finally {
       if (response != null) {
