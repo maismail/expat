@@ -172,8 +172,9 @@ public class PythonArtifactMigration implements MigrateStep {
             if (modelServer == 1) {
               // if flask server
               if (modelPath.endsWith(".py")) {
-                // if model path points to a script, the serving hasn't been updated yet
-                updateServing(servingId, newModelPath, null, predictor, updateServingWithPredStmt);
+                // if model path points to a script, the serving hasn't been updated yet.
+                // In non-kubernetes installations, predictor contains the full path to the script
+                updateServing(servingId, newModelPath, null, modelPath, updateServingWithPredStmt);
                 updateServings = true;
               }
             }
@@ -323,9 +324,11 @@ public class PythonArtifactMigration implements MigrateStep {
               }
             }
           } // -- end -- per serving
-    
-          // Delete unused artifacts and create artifact version 0 for python servings
-          deleteNewAndCreateV0Artifacts(projectName, keepModelArtifacts, createModelArtifactV0, dfso);
+  
+          if (isKubeInstalled) {
+            // Delete unused artifacts and create artifact version 0 for python servings
+            deleteNewAndCreateV0Artifacts(projectName, keepModelArtifacts, createModelArtifactV0, dfso);
+          }
         } // -- end -- per project
   
         // update servings
@@ -624,6 +627,12 @@ public class PythonArtifactMigration implements MigrateStep {
   
   private void deletePythonArtifacts(String projectName, HashSet<String> keepModelArtifacts,
     DistributedFileSystemOps dfso) throws IOException {
+    Path modelsPath = new Path(String.format(MODELS_PATH, projectName));
+    if(!dfso.exists(modelsPath)){
+      LOGGER.info("Project " + projectName + " doesn't have models directory.");
+      return;
+    }
+    
     LOGGER.info(String.format("Delete sklearn artifacts for project %s", projectName));
     
     // -- per model
@@ -669,6 +678,12 @@ public class PythonArtifactMigration implements MigrateStep {
   private void deleteNewAndCreateV0Artifacts(String projectName, HashSet<String> ignoreModels,
     HashSet<String> createModelArtifactV0, DistributedFileSystemOps dfso)
     throws IOException, IllegalAccessException, SQLException, InstantiationException {
+    Path modelsPath = new Path(String.format(MODELS_PATH, projectName));
+    if(!dfso.exists(modelsPath)){
+      LOGGER.info("Project " + projectName + " doesn't have models directory.");
+      return;
+    }
+    
     LOGGER.info(String.format("Rollback of new artifacts for models in project %s", projectName));
     
     // -- per model
