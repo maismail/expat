@@ -47,6 +47,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Stack;
@@ -95,12 +96,11 @@ public class PythonArtifactMigration implements MigrateStep {
       throw new MigrationException(errorMsg, ex);
     }
     
+    boolean isKubeInstalled;
     try {
       // check kubernetes is installed
       ExpatVariables kubernetesInstalled = expatVariablesFacade.findById("kubernetes_installed");
-      if (!Boolean.parseBoolean(kubernetesInstalled.getValue())) {
-        return; // model artifacts are only created with Kubernetes installed
-      }
+      isKubeInstalled = Boolean.parseBoolean(kubernetesInstalled.getValue());
     } catch (IllegalAccessException | SQLException | InstantiationException ex) {
       String errorMsg = "Could not migrate python artifacts";
       LOGGER.error(errorMsg);
@@ -139,36 +139,52 @@ public class PythonArtifactMigration implements MigrateStep {
           int modelVersion = servingsResultSet.getInt(3);
           int artifactVersion = servingsResultSet.getInt(4);
           int modelServer = servingsResultSet.getInt(5);
+          String newModelPath = extractNewModelPath(projectName, modelPath);
+          String predictor = extractPredictorFilename(modelPath);
           
-          if (artifactVersion == 0) {
-            String modelName = extractModelName(projectName, modelPath);
-            if (modelServer == 0) {
-              // if tensorflow serving and artifact version 0, add this model to be ignored when deleting artifacts
-              // with version 0
-              keepModelArtifacts.add(modelName + "/" + modelVersion);
-              continue;
+          if (isKubeInstalled) {
+            // if kubernetes is installed
+            if (artifactVersion == 0) {
+              // and artifact is model-only
+              String modelName = extractModelName(projectName, modelPath);
+              if (modelServer == 0) {
+                // if tensorflow serving and artifact version 0, add this model to be ignored when deleting artifacts
+                // with version 0
+                keepModelArtifacts.add(modelName + "/" + modelVersion);
+                continue;
+              }
+              if (modelServer == 1) {
+                // if flask server
+                if (!modelPath.endsWith(".py")) {
+                  // if model path does not point to a script, it's been already updated
+                  keepModelArtifacts.add(modelName + "/" + modelVersion);
+                  continue; // ignore serving
+                }
+                // migrate artifact
+                int newArtifactVersion = migratePythonArtifact(projectName, modelName, modelVersion, predictor, dfso);
+                // update serving
+                updateServing(servingId, newModelPath, newArtifactVersion, predictor, updateServingWithPredStmt);
+                updateServings = true;
+              }
             }
+          } else {
+            // if kubernetes is not installed, we don't create artifacts but we have to update python servings
             if (modelServer == 1) {
               // if flask server
-              if (!modelPath.endsWith(".py")) {
-                // if model path does not point to a script, it's been already updated
-                keepModelArtifacts.add(modelName + "/" + modelVersion);
-                continue; // ignore serving
+              if (modelPath.endsWith(".py")) {
+                // if model path points to a script, the serving hasn't been updated yet
+                updateServing(servingId, newModelPath, null, predictor, updateServingWithPredStmt);
+                updateServings = true;
               }
-              String predictor = extractPredictorFilename(modelPath);
-              // migrate artifact
-              int newArtifactVersion = migratePythonArtifact(projectName, modelName, modelVersion, predictor, dfso);
-              // update serving
-              String newModelPath = extractNewModelPath(projectName, modelPath);
-              updateServing(servingId, newModelPath, newArtifactVersion, predictor, updateServingWithPredStmt);
-              updateServings = true;
             }
           }
         } // -- end -- per serving
         
-        // delete unused version 0 artifacts
-        deletePythonArtifacts(projectName, keepModelArtifacts, dfso);
-      }
+        if (isKubeInstalled) {
+          // delete unused version 0 artifacts
+          deletePythonArtifacts(projectName, keepModelArtifacts, dfso);
+        }
+      } // -- end -- per project
       
       // update servings
       if (dryRun) {
@@ -203,13 +219,12 @@ public class PythonArtifactMigration implements MigrateStep {
       LOGGER.error(errorMsg);
       throw new RollbackException(errorMsg, ex);
     }
-    
+  
+    boolean isKubeInstalled;
     try {
       // check kubernetes is installed
       ExpatVariables kubernetesInstalled = expatVariablesFacade.findById("kubernetes_installed");
-      if (!Boolean.parseBoolean(kubernetesInstalled.getValue())) {
-        return; // model artifacts are only created with Kubernetes installed
-      }
+      isKubeInstalled = Boolean.parseBoolean(kubernetesInstalled.getValue());
     } catch (IllegalAccessException | SQLException | InstantiationException ex) {
       String errorMsg = "Could not migrate python artifact";
       LOGGER.error(errorMsg);
@@ -257,52 +272,55 @@ public class PythonArtifactMigration implements MigrateStep {
             int artifactVersion = servingsResultSet.getInt(4);
             int modelServer = servingsResultSet.getInt(5);
             String predictor = servingsResultSet.getString(6);
-    
+            String newPredictor = String.format(NEW_PREDICTOR_NAME, artifactVersion, predictor);
+            
             if (modelServer == 1) {
               // if flask
               if (artifactVersion > 0) {
                 // and artifact version > 0
-                
-                // Keep track of model name for later creation of artifact version 0
-                createModelArtifactV0.add(modelName + "/" + modelVersion);
-      
-                // Copy predictor script to model version folder if it doesn't already exists.
-                Path modelVersionPath = new Path(String.format(MODEL_VERSION_PATH, projectName, modelName,
-                  modelVersion));
-                FileStatus fileStatus = dfso.getFileStatus(modelVersionPath);
-                FsPermission permission = fileStatus.getPermission();
-                String username = fileStatus.getOwner();
-                String group = fileStatus.getGroup();
-                Path artifactVersionPath = new Path(String.format(ARTIFACT_VERSION_PATH, projectName, modelName,
-                  modelVersion, artifactVersion));
-                String newPredictor = String.format(NEW_PREDICTOR_NAME, artifactVersion, predictor);
-                copyPredictorFileToModelVersionFolder(modelVersionPath, artifactVersionPath, predictor, newPredictor,
-                  permission, username, group, dfso);
-      
-                // Delete artifact version
-                if (dryRun) {
-                  LOGGER.info("Delete artifact version directory: " + artifactVersionPath.toString());
-                } else {
-                  dfso.rm(artifactVersionPath, true);
+                if (isKubeInstalled) {
+                  // Keep track of model name for later creation of artifact version 0
+                  createModelArtifactV0.add(modelName + "/" + modelVersion);
+  
+                  // Copy predictor script to model version folder if it doesn't already exists.
+                  Path modelVersionPath = new Path(String.format(MODEL_VERSION_PATH, projectName, modelName,
+                    modelVersion));
+                  FileStatus fileStatus = dfso.getFileStatus(modelVersionPath);
+                  FsPermission permission = fileStatus.getPermission();
+                  String username = fileStatus.getOwner();
+                  String group = fileStatus.getGroup();
+                  Path artifactVersionPath = new Path(String.format(ARTIFACT_VERSION_PATH, projectName, modelName,
+                    modelVersion, artifactVersion));
+                  
+                  copyPredictorFileToModelVersionFolder(modelVersionPath, artifactVersionPath, predictor, newPredictor,
+                    permission, username, group, dfso);
+  
+                  // Delete artifact version
+                  if (dryRun) {
+                    LOGGER.info("Delete artifact version directory: " + artifactVersionPath.toString());
+                  } else {
+                    dfso.rm(artifactVersionPath, true);
+                  }
                 }
-      
+                
                 // Update serving
                 // - modelPath -> predictor script in model version folder
-                // - artifactVersion -> 0
+                // - artifactVersion -> 0 or null (no k8s)
                 // - predictor -> will be removed
                 String scriptPath = String.format(MODEL_VERSION_PATH + "/%s", projectName, modelName, modelVersion,
                   newPredictor);
-                updateServing(servingId, scriptPath, 0, null, updateServingStmt);
+                updateServing(servingId, scriptPath, isKubeInstalled ? 0 : null, null, updateServingStmt);
                 updateServings = true;
               } else {
                 // and artifact version = 0
                 LOGGER.info(String.format("Migration of MODEL-ONLY artifact ignored for model %s and version " +
                   "%s in project %s", modelName, modelVersion, projectName));
               }
-            }
-            if (modelServer == 0) {
-              // if tensorflow serving, keep track of model name/version to avoid removing its artifacts
-              keepModelArtifacts.add(modelName + "/" + modelVersion);
+            } else if(modelServer == 0) {
+              if (isKubeInstalled) {
+                // if tensorflow serving, keep track of model name/version to avoid removing its artifacts
+                keepModelArtifacts.add(modelName + "/" + modelVersion);
+              }
             }
           } // -- end -- per serving
     
@@ -378,10 +396,14 @@ public class PythonArtifactMigration implements MigrateStep {
     return artifactVersion;
   }
   
-  private void updateServing(int servingId, String modelPath, int artifactVersion, String predictor,
+  private void updateServing(int servingId, String modelPath, Integer artifactVersion, String predictor,
       PreparedStatement updateServingStmt) throws SQLException {
     updateServingStmt.setString(1, modelPath);
-    updateServingStmt.setInt(2, artifactVersion);
+    if (artifactVersion != null) {
+      updateServingStmt.setInt(2, artifactVersion);
+    } else {
+      updateServingStmt.setNull(2, Types.INTEGER);
+    }
     if (predictor != null) {
       updateServingStmt.setString(3, predictor);
       updateServingStmt.setInt(4, servingId);

@@ -137,18 +137,18 @@ public class ServingApiKeysMigration implements MigrateStep {
       }
       
       // create serving api keys for existing users
-      boolean isKubernetesInstalled;
+      boolean isKFServingInstalled;
       try {
         // -- check kubernetes is installed
-        ExpatVariables kubernetesInstalled = expatVariablesFacade.findById("kubernetes_installed");
-        isKubernetesInstalled = Boolean.parseBoolean(kubernetesInstalled.getValue());
+        ExpatVariables kfservingInstalled = expatVariablesFacade.findById("kube_kfserving_installed");
+        isKFServingInstalled = Boolean.parseBoolean(kfservingInstalled.getValue());
       } catch (IllegalAccessException | SQLException | InstantiationException ex) {
         String errorMsg = "Could not migrate serving api keys";
         LOGGER.error(errorMsg);
         throw new MigrationException(errorMsg, ex);
       }
       
-      if (isKubernetesInstalled) {
+      if (isKFServingInstalled) {
         try {
           kubeClient = KubernetesClientFactory.getClient();
         } catch (ConfigurationException e) {
@@ -245,18 +245,18 @@ public class ServingApiKeysMigration implements MigrateStep {
       }
       
       // delete serving api keys for existing users
-      boolean isKubernetesInstalled;
+      boolean isKFServingInstalled;
       try {
         // -- check kubernetes is installed
-        ExpatVariables kubernetesInstalled = expatVariablesFacade.findById("kubernetes_installed");
-        isKubernetesInstalled = Boolean.parseBoolean(kubernetesInstalled.getValue());
+        ExpatVariables kfservingInstalled = expatVariablesFacade.findById("kube_kfserving_installed");
+        isKFServingInstalled = Boolean.parseBoolean(kfservingInstalled.getValue());
       } catch (IllegalAccessException | SQLException | InstantiationException ex) {
         String errorMsg = "Could not rollback serving api keys";
         LOGGER.error(errorMsg);
         throw new RollbackException(errorMsg, ex);
       }
       
-      if (isKubernetesInstalled) {
+      if (isKFServingInstalled) {
         try {
           kubeClient = KubernetesClientFactory.getClient();
         } catch (ConfigurationException e) {
