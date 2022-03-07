@@ -48,7 +48,7 @@ public class HopsClient {
     Configuration conf = new Configuration();
     conf.addResource(hadoopPath);
     conf.addResource(hdfsPath);
-    conf.set(CommonConfigurationKeys.FS_PERMISSIONS_UMASK_KEY, "0027");
+    conf.set(CommonConfigurationKeys.FS_PERMISSIONS_UMASK_KEY, "0007");
     
     UserGroupInformation superUser = UserGroupInformation.createRemoteUser(clientUser);
     DistributedFileSystemOps dfso = new DistributedFileSystemOps(superUser, conf);
