@@ -38,6 +38,7 @@ public class ExpatHdfsInode extends ExpatAbstractEntity<ExpatHdfsInode> {
   private boolean dir;
   private int childrenNum;
   private long size;
+  private long partitionId;
   
   public ExpatHdfsInode() {
   }
@@ -162,6 +163,14 @@ public class ExpatHdfsInode extends ExpatAbstractEntity<ExpatHdfsInode> {
     this.size = size;
   }
   
+  public long getPartitionId() {
+    return partitionId;
+  }
+  
+  public void setPartitionId(long partitionId) {
+    this.partitionId = partitionId;
+  }
+  
   @Override
   public ExpatHdfsInode getEntity(ResultSet resultSet) throws SQLException {
     this.id = resultSet.getLong("id");
@@ -179,6 +188,7 @@ public class ExpatHdfsInode extends ExpatAbstractEntity<ExpatHdfsInode> {
     this.dir = resultSet.getBoolean("is_dir");
     this.childrenNum = resultSet.getInt("children_num");
     this.size = resultSet.getLong("size");
+    this.partitionId = resultSet.getLong("partition_id");
     return this;
   }
 }

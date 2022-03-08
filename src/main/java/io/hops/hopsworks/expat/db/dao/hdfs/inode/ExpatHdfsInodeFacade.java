@@ -16,16 +16,31 @@
  */
 package io.hops.hopsworks.expat.db.dao.hdfs.inode;
 
+import io.hops.hopsworks.common.util.HopsUtils;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.ExpatAbstractFacade;
+import io.hops.hopsworks.expat.migrations.MigrationException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.JDBCType;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ExpatHdfsInodeFacade extends ExpatAbstractFacade<ExpatHdfsInode> {
+  private static final Logger LOGGER = LogManager.getLogger(ExpatHdfsInodeFacade.class);
+  
+  private final static String FIND_ROOT_BY_NAME = "SELECT * FROM hops.hdfs_inodes i WHERE parent_id = ? "
+    + "AND name = ? AND partition_id = ?";
+  
   private Connection connection;
+  private PreparedStatement findRootByName;
+  
   protected ExpatHdfsInodeFacade(Class<ExpatHdfsInode> entityClass) throws SQLException, ConfigurationException {
     super(entityClass);
     this.connection = DbConnectionFactory.getConnection();
@@ -53,5 +68,38 @@ public class ExpatHdfsInodeFacade extends ExpatAbstractFacade<ExpatHdfsInode> {
   
   public ExpatHdfsInode find(Long id) throws IllegalAccessException, SQLException, InstantiationException {
     return this.findById(id, JDBCType.BIGINT);
+  }
+  
+  public ExpatHdfsInode getRootNode(String name) throws SQLException, MigrationException {
+    // LOGGER.info("getRootNode: " + name);
+    long partitionId = HopsUtils.calculatePartitionId(HopsUtils.ROOT_INODE_ID, name, HopsUtils.ROOT_DIR_DEPTH + 1);
+    return findByInodePK(HopsUtils.ROOT_INODE_ID, name, partitionId);
+  }
+  
+  public ExpatHdfsInode findByInodePK(long parentId, String name, long partitionId)
+    throws SQLException, MigrationException {
+    // LOGGER.info("findByInodePK: parentId: " + parentId + " name: " + name + " partitionId: " + partitionId);
+    findRootByName = connection.prepareStatement(FIND_ROOT_BY_NAME);
+    findRootByName.setLong(1, parentId);
+    findRootByName.setString(2, name);
+    findRootByName.setLong(3, partitionId);
+  
+    List<ExpatHdfsInode> resultList = new ArrayList<>();
+    ResultSet result = findRootByName.executeQuery();
+    while (result.next()) {
+      resultList.add(new ExpatHdfsInode().getEntity(result));
+    }
+  
+    findRootByName.close();
+  
+    if (resultList.size() == 1) {
+      return resultList.get(0);
+    } else if (resultList.size() > 1) {
+      LOGGER.warn("Found more than one root inode with name: " + name);
+      throw new MigrationException("Found more than one root inode with name: " + name);
+    } else {
+      LOGGER.warn("Found no root inode with name: " + name);
+      return null;
+    }
   }
 }
