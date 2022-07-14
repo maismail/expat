@@ -19,80 +19,80 @@ import java.sql.SQLException;
 
 public abstract class FeatureStoreMigration implements MigrateStep {
 
-    protected final Logger LOGGER;
+  protected final Logger LOGGER;
 
-    protected Connection connection;
-    protected DistributedFileSystemOps dfso = null;
-    protected boolean dryRun;
-    protected String hopsUser;
-    protected ExpatInodeController inodeController;
+  protected Connection connection;
+  protected DistributedFileSystemOps dfso = null;
+  protected boolean dryRun;
+  protected String hopsUser;
+  protected ExpatInodeController inodeController;
 
-    public FeatureStoreMigration() {
-        LOGGER = LogManager.getLogger(this.getClass());
+  public FeatureStoreMigration() {
+    LOGGER = LogManager.getLogger(this.getClass());
+  }
+
+  public abstract void runRollback() throws RollbackException;
+
+  public abstract void runMigration() throws MigrationException, SQLException;
+
+  @Override
+  public void migrate() throws MigrationException {
+    LOGGER.info("Starting migration of " + super.getClass().getName());
+
+    try {
+      setup();
+      runMigration();
+      close();
+    } catch (ConfigurationException | SQLException ex) {
+      String errorMsg = "Could not initialize database connection";
+      LOGGER.error(errorMsg);
+      close();
+      throw new MigrationException(errorMsg, ex);
     }
+    LOGGER.info("Finished migration of " + super.getClass().getName());
+  }
 
-    public abstract void runRollback() throws RollbackException;
-
-    public abstract void runMigration() throws MigrationException, SQLException;
-
-    @Override
-    public void migrate() throws MigrationException {
-        LOGGER.info("Starting migration of " + super.getClass().getName());
-
-        try {
-            setup();
-            runMigration();
-            close();
-        } catch (ConfigurationException | SQLException ex) {
-            String errorMsg = "Could not initialize database connection";
-            LOGGER.error(errorMsg);
-            close();
-            throw new MigrationException(errorMsg, ex);
-        }
-        LOGGER.info("Finished migration of " + super.getClass().getName());
+  @Override
+  public void rollback() throws RollbackException {
+    LOGGER.info("Starting rollback of " + super.getClass().getName());
+    try {
+      setup();
+      runRollback();
+      close();
+    } catch (ConfigurationException | SQLException ex) {
+      String errorMsg = "Could not initialize database connection";
+      LOGGER.error(errorMsg);
+      close();
+      throw new RollbackException(errorMsg, ex);
     }
+    LOGGER.info("Finished rollback of " + super.toString());
+  }
 
-    @Override
-    public void rollback() throws RollbackException {
-        LOGGER.info("Starting rollback of " + super.getClass().getName());
-        try {
-            setup();
-            runRollback();
-            close();
-        } catch (ConfigurationException | SQLException ex) {
-            String errorMsg = "Could not initialize database connection";
-            LOGGER.error(errorMsg);
-            close();
-            throw new RollbackException(errorMsg, ex);
-        }
-        LOGGER.info("Finished rollback of " + super.toString());
+
+  protected void setup()
+      throws ConfigurationException, SQLException {
+    connection = DbConnectionFactory.getConnection();
+
+    Configuration conf = ConfigurationBuilder.getConfiguration();
+    hopsUser = conf.getString(ExpatConf.HOPS_CLIENT_USER);
+    if (hopsUser == null) {
+      throw new ConfigurationException(ExpatConf.HOPS_CLIENT_USER + " cannot be null");
     }
+    dfso = HopsClient.getDFSO(hopsUser);
+    dryRun = conf.getBoolean(ExpatConf.DRY_RUN);
+    inodeController = new ExpatInodeController(this.connection);
+  }
 
-
-    protected void setup()
-            throws ConfigurationException, SQLException {
-        connection = DbConnectionFactory.getConnection();
-
-        Configuration conf = ConfigurationBuilder.getConfiguration();
-        hopsUser = conf.getString(ExpatConf.HOPS_CLIENT_USER);
-        if (hopsUser == null) {
-            throw new ConfigurationException(ExpatConf.HOPS_CLIENT_USER + " cannot be null");
-        }
-        dfso = HopsClient.getDFSO(hopsUser);
-        dryRun = conf.getBoolean(ExpatConf.DRY_RUN);
-        inodeController = new ExpatInodeController(this.connection);
+  protected void close() {
+    if (connection != null) {
+      try {
+        connection.close();
+      } catch (SQLException ex) {
+        LOGGER.error("failed to close jdbc connection", ex);
+      }
     }
-
-    protected void close() {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (SQLException ex) {
-                LOGGER.error("failed to close jdbc connection", ex);
-            }
-        }
-        if (dfso != null) {
-            dfso.close();
-        }
+    if (dfso != null) {
+      dfso.close();
     }
+  }
 }
