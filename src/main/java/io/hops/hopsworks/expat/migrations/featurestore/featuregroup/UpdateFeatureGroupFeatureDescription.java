@@ -46,7 +46,7 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.persistence.jaxb.JAXBContextFactory;
 import org.eclipse.persistence.jaxb.MarshallerProperties;
 import org.eclipse.persistence.oxm.MediaType;
-import org.elasticsearch.common.CheckedBiConsumer;
+import org.opensearch.common.CheckedBiConsumer;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;

@@ -110,7 +110,7 @@ public class MultiTenantKibana implements MigrateStep {
         String projectName = projects.get(project);
         String elkToken = getELKToken(project);
         
-        String[] indexPatterns = {Settings.ELASTIC_LOGS_INDEX_PATTERN,
+        String[] indexPatterns = {Settings.OPENSEARCH_LOGS_INDEX_PATTERN,
             Utils.ELASTIC_KAGENT_INDEX_PATTERN,
             BeamKibana.ELASTIC_SERVING_INDEX_PATTERN,
             BeamKibana.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN,
@@ -142,7 +142,7 @@ public class MultiTenantKibana implements MigrateStep {
         String projectName = projects.get(project);
         String elkToken = getELKToken(project);
       
-        String[] indexPatterns = {Settings.ELASTIC_LOGS_INDEX_PATTERN,
+        String[] indexPatterns = {Settings.OPENSEARCH_LOGS_INDEX_PATTERN,
             Utils.ELASTIC_KAGENT_INDEX_PATTERN,
             BeamKibana.ELASTIC_SERVING_INDEX_PATTERN,
             BeamKibana.ELASTIC_BEAMJOBSERVER_INDEX_PATTERN,
