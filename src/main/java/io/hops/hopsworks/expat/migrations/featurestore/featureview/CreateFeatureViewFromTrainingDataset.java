@@ -60,7 +60,7 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
           "INNER JOIN feature_group AS fg ON tdf.feature_group = fg.id " +
           "WHERE %s";
 
-  private final static String GET_ARRAY = "SELECT a.id FROM %s AS a WHERE %s";
+  private final static String GET_ARRAY_FROM_TD = "SELECT a.id FROM %s AS a WHERE a.training_dataset = %s";
   private final static String SET_FEATURE_VIEW = "UPDATE %s SET feature_view_id = ? WHERE %s = ?";
   private final static String REMOVE_FEATURE_VIEW_FROM_TABLES = "UPDATE %s SET %s = null WHERE %s = ?";
   private final static String DELETE_FEATURE_VIEW = "DELETE FROM feature_view WHERE id = ?";
@@ -251,7 +251,13 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
       byte[] val = sw.toString().getBytes();
       if (val.length > 13500) {
         LOGGER.warn("xattr too large - skipping attaching features to featuregroup.");
-        marshaller.marshal(fv, sw);
+        sw = new StringWriter();
+        FeatureViewXAttrDTO fvWithoutFeatures = new FeatureViewXAttrDTO(featurestoreId,
+            description,
+            createDate,
+            email,
+            Lists.newArrayList());
+        marshaller.marshal(fvWithoutFeatures, sw);
         val = sw.toString().getBytes();
       }
       if (!dryRun) {
@@ -365,7 +371,7 @@ public class CreateFeatureViewFromTrainingDataset extends FeatureStoreMigration 
   }
 
   private Integer[] getArray(String tableName, Integer trainingDatasetId) throws MigrationException {
-    String sql = String.format(GET_ARRAY, tableName, trainingDatasetId);
+    String sql = String.format(GET_ARRAY_FROM_TD, tableName, trainingDatasetId);
     try {
       PreparedStatement getFeaturesStatement = connection.prepareStatement(sql);
       ResultSet results = getFeaturesStatement.executeQuery();
