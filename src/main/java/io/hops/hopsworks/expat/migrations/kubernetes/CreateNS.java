@@ -60,11 +60,11 @@ public class CreateNS implements MigrateStep {
         String projectName = resultSet.getString(1);
         String nsName = projectName.toLowerCase().replaceAll("[^a-z0-9-]", "-");
         try {
-          client.namespaces().createOrReplaceWithNew()
+          client.namespaces().resource(new NamespaceBuilder()
               .withNewMetadata()
               .withName(nsName)
               .endMetadata()
-              .done();
+              .build()).create();
           LOGGER.info("Namespace " + nsName + " created for project: " + projectName);
         } catch (KubernetesClientException e) {
           LOGGER.error("Could not create Namespace " + nsName + " for project: " + projectName, e);
