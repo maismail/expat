@@ -170,5 +170,8 @@
     <version-31>
         io.hops.hopsworks.expat.migrations.serving.ServingModelFrameworkMigration
     </version-31>
+    <version-33>
+        io.hops.hopsworks.expat.migrations.onlinefs.CreateOnlineFeaturestoreKafkaOffsetTable
+    </version-33>
 </expat>
 
