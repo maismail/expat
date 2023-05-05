@@ -96,7 +96,8 @@ public class CreateOnlineFeaturestoreKafkaOffsetTable extends FeatureStoreMigrat
   private List<String> getProjectNames() throws SQLException {
     List<String> projectNames = new ArrayList<>();
     try (PreparedStatement statement = connection.prepareStatement(GET_ALL_PROJECTS)) {
-      try (ResultSet resultSet = statement.executeQuery()) {
+      ResultSet resultSet = statement.executeQuery();
+      while (resultSet.next()) {
         projectNames.add(resultSet.getString(GET_ALL_PROJECTS_S_PROJECTNAME));
       }
     }
