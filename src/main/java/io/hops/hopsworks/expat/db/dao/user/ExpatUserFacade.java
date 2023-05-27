@@ -17,9 +17,8 @@
 
 package io.hops.hopsworks.expat.db.dao.user;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -30,7 +29,7 @@ import java.util.List;
 
 public class ExpatUserFacade {
 
-  private static final Logger LOGGER = LogManager.getLogger(ExpatUserFacade.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExpatUserFacade.class);
 
   private final static String GET_USERS = "SELECT * FROM users";
   private final static String GET_LOCAL_USERS = "SELECT * FROM users WHERE mode = 0";
@@ -129,7 +128,7 @@ public class ExpatUserFacade {
       stmt.setInt(2, expatUser.getUid());
 
       if (dryRun) {
-        LOGGER.log(Level.INFO, stmt.toString());
+        LOGGER.info(stmt.toString());
         return;
       }
       stmt.execute();
@@ -143,7 +142,7 @@ public class ExpatUserFacade {
       stmt.setInt(2, expatUser.getUid());
 
       if (dryRun) {
-        LOGGER.log(Level.INFO, stmt.toString());
+        LOGGER.info(stmt.toString());
         return;
       }
       stmt.execute();

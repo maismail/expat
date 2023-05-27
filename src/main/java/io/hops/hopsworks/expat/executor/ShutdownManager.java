@@ -16,8 +16,9 @@
  */
 package io.hops.hopsworks.expat.executor;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -32,7 +33,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class ShutdownManager {
-  private static final Logger LOG = LogManager.getLogger(ShutdownManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ShutdownManager.class);
   private static volatile ShutdownManager instance;
   private final SortedSet<ShutdownHook> hooks;
   private final AtomicBoolean shuttingDown;

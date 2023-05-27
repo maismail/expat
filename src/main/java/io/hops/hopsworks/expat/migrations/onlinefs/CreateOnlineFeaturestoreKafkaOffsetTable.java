@@ -19,8 +19,8 @@ package io.hops.hopsworks.expat.migrations.onlinefs;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import io.hops.hopsworks.expat.migrations.featurestore.featureview.FeatureStoreMigration;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CreateOnlineFeaturestoreKafkaOffsetTable extends FeatureStoreMigration {
-  private final static Logger LOGGER = LogManager.getLogger(CreateOnlineFeaturestoreKafkaOffsetTable.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(CreateOnlineFeaturestoreKafkaOffsetTable.class);
   
   private final static String GET_ALL_PROJECTS = "SELECT projectname FROM `hopsworks`.`project`";
   private final static int GET_ALL_PROJECTS_S_PROJECTNAME = 1;

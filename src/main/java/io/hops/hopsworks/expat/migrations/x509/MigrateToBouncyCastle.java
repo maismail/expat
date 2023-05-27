@@ -29,9 +29,6 @@ import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 import org.bouncycastle.cert.X509CRLHolder;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CRLConverter;
@@ -43,6 +40,8 @@ import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileReader;
 import java.io.IOException;
@@ -64,7 +63,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public class MigrateToBouncyCastle implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(MigrateToBouncyCastle.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MigrateToBouncyCastle.class);
   private Connection dbConnection;
   private final JcaPEMKeyConverter pemKeyConverter;
   private final JcaX509CertificateConverter x509CertificateConverter;
@@ -91,60 +90,60 @@ public class MigrateToBouncyCastle implements MigrateStep {
 
   @Override
   public void migrate() throws MigrationException {
-    LOGGER.log(Level.INFO, "Running migrations");
+    LOGGER.info("Running migrations");
     try {
       setup();
     } catch (ConfigurationException | SQLException ex) {
       String msg = "Failed to setup connection to database";
-      LOGGER.log(Level.ERROR, msg, ex);
+      LOGGER.error(msg, ex);
       throw new MigrationException(msg, ex);
     }
 
     if (!Paths.get("/srv/hops/certs-dir/private/ca.key.pem").toFile().exists()) {
-      LOGGER.log(Level.INFO, "ROOT CA private key does not exist. Skipping migration "
+      LOGGER.info("ROOT CA private key does not exist. Skipping migration "
           + MigrateToBouncyCastle.class.getName());
       return;
     }
 
     // Migrate CA Private keys
-    LOGGER.log(Level.INFO, "Migrating Certificate Authorities key pairs");
+    LOGGER.info("Migrating Certificate Authorities key pairs");
     try {
       migrateKeyPairs();
     } catch (Exception ex) {
-      LOGGER.log(Level.ERROR, "Failed to migrate key pairs", ex);
+      LOGGER.error("Failed to migrate key pairs", ex);
       throw new MigrationException("Failed to migrate key pairs", ex);
     }
-    LOGGER.log(Level.INFO, "Finished migrating key pairs");
+    LOGGER.info("Finished migrating key pairs");
 
     // Migrate serial numbers
-    LOGGER.log(Level.INFO, "Migrating Certificate Authorities serial number");
+    LOGGER.info("Migrating Certificate Authorities serial number");
     try {
       migrateSerialNumbers();
     } catch (IOException | SQLException ex) {
-      LOGGER.log(Level.ERROR, "Failed to migrated CA serial number", ex);
+      LOGGER.error("Failed to migrated CA serial number", ex);
       throw new MigrationException("Failed to migrated CA serial number", ex);
     }
-    LOGGER.log(Level.INFO, "Finished migrating serial numbers");
+    LOGGER.info("Finished migrating serial numbers");
 
     // Migrate certificates
-    LOGGER.log(Level.INFO, "Migrating certificates for Certificate Authorities");
+    LOGGER.info("Migrating certificates for Certificate Authorities");
     try {
       migrateCertificates();
     } catch (Exception ex) {
-      LOGGER.log(Level.ERROR, "Failed to migrate certificates");
+      LOGGER.error("Failed to migrate certificates");
       throw new MigrationException("Failed to migrate certificates", ex);
     }
-    LOGGER.log(Level.INFO, "Finished migrating certificates");
+    LOGGER.info("Finished migrating certificates");
 
     // Migrate CRL
-    LOGGER.log(Level.INFO, "Migrating CRL for CAs");
+    LOGGER.info("Migrating CRL for CAs");
     try {
       migrateCRLs();
     } catch (Exception ex) {
-      LOGGER.log(Level.ERROR, "Failed to migrate CRLs", ex);
+      LOGGER.error("Failed to migrate CRLs", ex);
       throw new MigrationException("Failed to migrate CRLs", ex);
     }
-    LOGGER.log(Level.INFO, "Finished migrating CRLs");
+    LOGGER.info("Finished migrating CRLs");
   }
 
   @Override
@@ -163,7 +162,7 @@ public class MigrateToBouncyCastle implements MigrateStep {
         certificatesFacade.truncatePKICertificates(dbConnection);
       }
     } catch (Exception ex) {
-      LOGGER.log(Level.ERROR, "Error while rollback", ex);
+      LOGGER.error("Error while rollback", ex);
       throw new RollbackException("Error while rollback", ex);
     }
   }
@@ -185,43 +184,43 @@ public class MigrateToBouncyCastle implements MigrateStep {
   private void migrateKeyPairs() throws IOException, SQLException {
     // Root CA
     String password = config.getString(ExpatConf.CA_PASSWORD);
-    LOGGER.log(Level.INFO, "Migrating ROOT Certificate Authority keys");
+    LOGGER.info("Migrating ROOT Certificate Authority keys");
     migrateKeyPair(
         "ROOT",
         Paths.get("/srv/hops/certs-dir/private/ca.key.pem"),
         password);
-    LOGGER.log(Level.INFO, "Finished successfully ROOT CA keys migration");
+    LOGGER.info("Finished successfully ROOT CA keys migration");
 
     // Intermediate CA
-    LOGGER.log(Level.INFO, "Migrating INTERMEDIATE Certificate Authority keys");
+    LOGGER.info("Migrating INTERMEDIATE Certificate Authority keys");
     migrateKeyPair(
         "INTERMEDIATE",
         Paths.get("/srv/hops/certs-dir/intermediate/private/intermediate.key.pem"),
         password);
-    LOGGER.log(Level.INFO, "Finished successfully INTERMEDIATE CA keys migration");
+    LOGGER.info("Finished successfully INTERMEDIATE CA keys migration");
 
     // Kubernetes CA
     Path keyPath = Paths.get("/srv/hops/certs-dir/kube/private/kube-ca.key.pem");
     if (keyPath.toFile().exists()) {
-      LOGGER.log(Level.INFO, "Migrating Kubernetes Certificate Authority keys");
+      LOGGER.info("Migrating Kubernetes Certificate Authority keys");
       migrateKeyPair(
           "KUBECA",
           keyPath,
           password);
-      LOGGER.log(Level.INFO, "Finished successfully Kubernetes CA keys migration");
+      LOGGER.info("Finished successfully Kubernetes CA keys migration");
     }
   }
 
   private void migrateKeyPair(String owner, Path path, String password) throws IOException, SQLException {
-    LOGGER.log(Level.INFO, "Loading keypair for " + owner + " from " + path.toString());
+    LOGGER.info("Loading keypair for " + owner + " from " + path.toString());
     KeyPair keyPair = loadKeyPair(path, password);
     if (keysFacade.exists(owner)) {
-      LOGGER.log(Level.INFO, "Key for " + owner + " has already been migrated. Skipping...");
+      LOGGER.info("Key for " + owner + " has already been migrated. Skipping...");
       return;
     }
-    LOGGER.log(Level.INFO, "Saving private key");
+    LOGGER.info("Saving private key");
     keysFacade.insertKey(owner, 0, keyPair.getPrivate().getEncoded());
-    LOGGER.log(Level.INFO, "Saving public key");
+    LOGGER.info("Saving public key");
     keysFacade.insertKey(owner, 1, keyPair.getPublic().getEncoded());
   }
 
@@ -244,15 +243,15 @@ public class MigrateToBouncyCastle implements MigrateStep {
    * Serial number
    */
   private void migrateSerialNumbers() throws IOException, SQLException {
-    LOGGER.log(Level.INFO, "Migrating Serial Number for ROOT");
+    LOGGER.info("Migrating Serial Number for ROOT");
     migrateSerialNumber("ROOT", Paths.get("/srv/hops/certs-dir/serial"));
 
-    LOGGER.log(Level.INFO, "Migrating Serial Number for INTERMEDIATE");
+    LOGGER.info("Migrating Serial Number for INTERMEDIATE");
     migrateSerialNumber("INTERMEDIATE", Paths.get("/srv/hops/certs-dir/intermediate/serial"));
 
     Path serialNumberPath = Paths.get("/srv/hops/certs-dir/kube/serial");
     if (serialNumberPath.toFile().exists()) {
-      LOGGER.log(Level.INFO, "Migrating Serial Number for Kubernetes");
+      LOGGER.info("Migrating Serial Number for Kubernetes");
       migrateSerialNumber("KUBECA", serialNumberPath);
     }
   }
@@ -260,11 +259,11 @@ public class MigrateToBouncyCastle implements MigrateStep {
   private void migrateSerialNumber(String type, Path path) throws IOException, SQLException {
     Long sn = getSerialNumber(path);
     if (serialNumberFacade.exists(type)) {
-      LOGGER.log(Level.INFO, "Serial number for " + type + " has already been migrated. Skipping...");
+      LOGGER.info("Serial number for " + type + " has already been migrated. Skipping...");
       return;
     }
     serialNumberFacade.initializeSerialNumber(type, sn);
-    LOGGER.log(Level.INFO, "Migrated Serial Number for " + type + " with next number " + sn);
+    LOGGER.info("Migrated Serial Number for " + type + " with next number " + sn);
   }
 
   private Long getSerialNumber(Path path) throws IOException {
@@ -278,21 +277,21 @@ public class MigrateToBouncyCastle implements MigrateStep {
   private void migrateCertificates() throws IOException {
 
     // ROOT
-    LOGGER.log(Level.INFO, "Migrating certificates for ROOT CA");
+    LOGGER.info("Migrating certificates for ROOT CA");
     migrateCertificatesForCA(Paths.get("/srv/hops/certs-dir/certs"), 0);
-    LOGGER.log(Level.INFO, "Finished certificates migration for ROOT CA");
+    LOGGER.info("Finished certificates migration for ROOT CA");
 
     // INTERMEDIATE
-    LOGGER.log(Level.INFO, "Migrating certificates for INTERMEDIATE CA");
+    LOGGER.info("Migrating certificates for INTERMEDIATE CA");
     migrateCertificatesForCA(Paths.get("/srv/hops/certs-dir/intermediate/certs"), 1);
-    LOGGER.log(Level.INFO, "Finished certificates migration for INTERMEDIATE CA");
+    LOGGER.info("Finished certificates migration for INTERMEDIATE CA");
 
     Path kubeCertsDir = Paths.get("/srv/hops/certs-dir/kube/certs");
     if (kubeCertsDir.toFile().exists()) {
       // Kubernetes
-      LOGGER.log(Level.INFO, "Migrating certificates for Kubernetes CA");
+      LOGGER.info("Migrating certificates for Kubernetes CA");
       migrateCertificatesForCA(kubeCertsDir, 2);
-      LOGGER.log(Level.INFO, "Finished certificates migration for Kubernetes CA");
+      LOGGER.info("Finished certificates migration for Kubernetes CA");
     }
   }
 
@@ -304,7 +303,7 @@ public class MigrateToBouncyCastle implements MigrateStep {
           .filter(f -> !certificatesToIgnore.contains(f.toString()))
           .forEach(f -> {
             try {
-              LOGGER.log(Level.INFO, "Migrating certificate " + f);
+              LOGGER.info("Migrating certificate " + f);
               migrateCertificate(f, ca);
             } catch (IOException | CertificateException | SQLException ex) {
               throw new RuntimeException(ex);
@@ -323,7 +322,7 @@ public class MigrateToBouncyCastle implements MigrateStep {
       Date notAfter = certificate.getNotAfter();
 
       if (certificatesFacade.exists(dbConnection, subject, dryRun)) {
-        LOGGER.log(Level.INFO, "Certificate for " + subject + " has already been migrated. Skipping...");
+        LOGGER.info("Certificate for " + subject + " has already been migrated. Skipping...");
         return;
       }
       certificatesFacade.insertPKICertificate(
@@ -353,7 +352,7 @@ public class MigrateToBouncyCastle implements MigrateStep {
    */
   private void migrateCRLs() throws IOException, CRLException, SQLException {
     // ROOT CA does not have CRL in old setup. It will be automatically be initialized by Hopsworks
-    LOGGER.log(Level.INFO, "Migrating CRL for INTERMEDIATE CA");
+    LOGGER.info("Migrating CRL for INTERMEDIATE CA");
     migrateCRL(Paths.get("/srv/hops/certs-dir/intermediate/crl/intermediate.crl.pem"), "INTERMEDIATE");
     // Kubernetes CA does not have CRL in old setup
   }
@@ -361,9 +360,9 @@ public class MigrateToBouncyCastle implements MigrateStep {
   private void migrateCRL(Path path, String type) throws IOException, CRLException, SQLException {
     X509CRL crl = loadCRL(path);
     if (crl != null) {
-      LOGGER.log(Level.INFO, "Migrating " + type + " CRL from " + path);
+      LOGGER.info("Migrating " + type + " CRL from " + path);
       if (crlFacade.exists(type)) {
-        LOGGER.log(Level.INFO, "CRL for " + type + " has already been migrated. Skipping...");
+        LOGGER.info("CRL for " + type + " has already been migrated. Skipping...");
         return;
       }
       crlFacade.insertCRL(type, crl.getEncoded());

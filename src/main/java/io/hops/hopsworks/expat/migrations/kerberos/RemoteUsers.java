@@ -36,9 +36,8 @@ import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.naming.NamingException;
 import java.io.IOException;
@@ -63,7 +62,7 @@ public class RemoteUsers implements MigrateStep {
 
   private boolean dryrun = true;
 
-  private static final Logger LOGGER = LogManager.getLogger(RemoteUsers.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(RemoteUsers.class);
 
   public RemoteUsers()
       throws SQLException, ConfigurationException, NamingException, IOException {
@@ -85,7 +84,7 @@ public class RemoteUsers implements MigrateStep {
 
   @Override
   public void migrate() throws MigrationException {
-    LOGGER.log(Level.INFO, "Starting Kerberos migration");
+    LOGGER.info("Starting Kerberos migration");
     try {
       if (dryrun){
         dbConnection.setAutoCommit(false);
@@ -93,7 +92,7 @@ public class RemoteUsers implements MigrateStep {
 
       List<ExpatUser> expatUsers = expatUserFacade.getLocalUsers(dbConnection);
       for (ExpatUser expatUser : expatUsers) {
-        LOGGER.log(Level.INFO, "Processing user: " + expatUser.getEmail());
+        LOGGER.info("Processing user: " + expatUser.getEmail());
         try {
           dbConnection.setAutoCommit(false);
           String uuid = ldapQuery.getUUID(expatUser);
@@ -102,11 +101,11 @@ public class RemoteUsers implements MigrateStep {
           if (!dryrun) {
             dbConnection.commit();
           }
-          LOGGER.log(Level.INFO, "Processed LDAP user for email: " + expatUser.getEmail());
+          LOGGER.info("Processed LDAP user for email: " + expatUser.getEmail());
         } catch (LdapUserNotFound notFound) {
-          LOGGER.log(Level.WARN, "Could not find LDAP user for email: " + expatUser.getEmail());
+          LOGGER.warn("Could not find LDAP user for email: " + expatUser.getEmail());
         } catch (Exception e) {
-          LOGGER.log(Level.WARN, "Error processing password update for user: " + expatUser.getEmail());
+          LOGGER.warn("Error processing password update for user: " + expatUser.getEmail());
           if (!dryrun) {
             dbConnection.rollback();
             dbConnection.setAutoCommit(true);
@@ -134,21 +133,21 @@ public class RemoteUsers implements MigrateStep {
     String newUserPwd = DigestUtils.sha256Hex(expatUser.getPassword() + expatUser.getSalt());
 
     for (ExpatCertificate certificate : userCertificates) {
-      LOGGER.log(Level.INFO, "Updating password for certificate: " + certificate.getProjectName());
+      LOGGER.info("Updating password for certificate: " + certificate.getProjectName());
       try {
         String decryptedCertPwd =
             HopsUtils.decrypt(expatUser.getPassword(), certificate.getCipherPassword(), masterPassword);
-        LOGGER.log(Level.INFO, "Certificate PWD: " + decryptedCertPwd);
+        LOGGER.info("Certificate PWD: " + decryptedCertPwd);
         String newCertPwd = HopsUtils.encrypt(newUserPwd, decryptedCertPwd, masterPassword);
         certificatesFacade.updateCertPassword(dbConnection, certificate, newCertPwd, dryRun);
       } catch (Exception e) {
-        LOGGER.log(Level.INFO, "Error Decrypting password for project certificate: " + certificate.getProjectName());
+        LOGGER.info("Error Decrypting password for project certificate: " + certificate.getProjectName());
       }
     }
 
-    LOGGER.log(Level.INFO, "Updating password for user");
+    LOGGER.info("Updating password for user");
     expatUserFacade.updateUserPassword(dbConnection, expatUser, newUserPwd, dryRun);
-    LOGGER.log(Level.INFO, "Updating mode for user");
+    LOGGER.info("Updating mode for user");
     expatUserFacade.updateMode(dbConnection, expatUser, 1, dryRun);
   }
 }

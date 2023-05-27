@@ -11,8 +11,8 @@ import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 public class DockerConda implements MigrateStep {
   
-  private static final Logger LOGGER = LogManager.getLogger(DockerConda.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(DockerConda.class);
   
   private String condaDir = null;
   private String condaUser = null;

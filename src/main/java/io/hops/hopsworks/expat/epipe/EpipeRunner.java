@@ -19,8 +19,8 @@ package io.hops.hopsworks.expat.epipe;
 import io.hops.hopsworks.expat.elastic.ElasticClient;
 import org.apache.http.HttpHost;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 
 public class EpipeRunner {
-  private static final Logger LOGGER = LogManager.getLogger(EpipeRunner.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(EpipeRunner.class);
   
   private static final String REINDEX_PREFIX = "reindex_of = ";
   private static final String REINDEX_ALL = REINDEX_PREFIX + "all";

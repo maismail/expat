@@ -18,9 +18,8 @@
 package io.hops.hopsworks.expat.db.dao.certificates;
 
 import io.hops.hopsworks.expat.db.dao.user.ExpatUser;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -34,7 +33,7 @@ import java.util.List;
 
 public class CertificatesFacade {
 
-  private static final Logger LOGGER = LogManager.getLogger(CertificatesFacade.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CertificatesFacade.class);
 
   private static final String UPDATE_PWD =
       "UPDATE user_certs SET user_key_pwd=? WHERE projectname=? AND username=?";
@@ -55,7 +54,7 @@ public class CertificatesFacade {
       stmt.setString(3, expatCertificate.getUsername());
 
       if (dryRun) {
-        LOGGER.log(Level.INFO, stmt.toString());
+        LOGGER.info(stmt.toString());
         return;
       }
       stmt.execute();
@@ -95,7 +94,7 @@ public class CertificatesFacade {
       stmt.setTimestamp(7, Timestamp.from(notAfter));
 
       if (dryRun) {
-        LOGGER.log(Level.INFO, "Executing: " + stmt);
+        LOGGER.info("Executing: " + stmt);
       } else {
         stmt.execute();
       }
@@ -106,7 +105,7 @@ public class CertificatesFacade {
     try (PreparedStatement stmt = connection.prepareStatement(GET_PKI_CERTIFICATE)) {
       stmt.setString(1, subject);
       if (dryRun) {
-        LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
+        LOGGER.info("DryRun - Executing " + stmt);
       } else {
         if (stmt.execute()) {
           return stmt.getResultSet().next();

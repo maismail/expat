@@ -37,9 +37,9 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -56,7 +56,7 @@ import java.util.Map;
  */
 public class MultiTenantKibana implements MigrateStep {
   
-  private static final Logger LOGGER = LogManager.getLogger(MultiTenantKibana.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantKibana.class);
   
   private static final String GET_PROJECT_IDS_AND_NAMES = "SELECT id," +
       "projectname FROM project";

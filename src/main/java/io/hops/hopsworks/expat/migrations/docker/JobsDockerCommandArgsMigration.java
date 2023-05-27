@@ -22,11 +22,10 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -36,7 +35,7 @@ import java.sql.SQLException;
 
 public class JobsDockerCommandArgsMigration implements MigrateStep {
 
-  private static final Logger LOGGER = LogManager.getLogger(JobsDockerCommandArgsMigration.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobsDockerCommandArgsMigration.class);
   private final static String GET_ALL_DOCKER_CONFIGURATIONS =
           "SELECT id, json_config FROM jobs WHERE type = ?";
   private final static String UPDATE_SPECIFIC_JOB_JSON_CONFIG = "UPDATE jobs SET json_config = ? WHERE id = ?";
@@ -75,7 +74,7 @@ public class JobsDockerCommandArgsMigration implements MigrateStep {
 
           LOGGER.info("Trying to migrate JobID: " + id);
           JSONObject config = new JSONObject(oldConfig);
-          LOGGER.log(Level.INFO, "config:" + config);
+          LOGGER.info("config:" + config);
           if (config.has("args")) {
             args = config.getString("args");
             config.remove("args");
@@ -90,7 +89,7 @@ public class JobsDockerCommandArgsMigration implements MigrateStep {
           }
 
           String newConfig = config.toString();
-          LOGGER.log(Level.INFO, "newConfig:" + newConfig);
+          LOGGER.info("newConfig:" + newConfig);
           LOGGER.info("Successfully migrated JobID: " + id);
 
           updateJSONConfigStmt.setString(1, newConfig);

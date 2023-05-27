@@ -24,14 +24,14 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
 public class Utils {
-  private static final Logger LOGGER = LogManager.getLogger(Utils.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
   
   public static final String ELASTIC_KAGENT_INDEX = "kagent";
   public static final String ELASTIC_KAGENT_INDEX_PATTERN = "_" + ELASTIC_KAGENT_INDEX + "-*";

@@ -41,12 +41,12 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.persistence.jaxb.JAXBContextFactory;
 import org.eclipse.persistence.jaxb.MarshallerProperties;
 import org.eclipse.persistence.oxm.MediaType;
 import org.opensearch.common.CheckedBiConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -70,7 +70,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class UpdateFeatureGroupFeatureDescription implements MigrateStep {
-  private final static Logger LOGGER = LogManager.getLogger(UpdateFeatureGroupFeatureDescription.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(UpdateFeatureGroupFeatureDescription.class);
   
   private final static String GET_ALL_FEATURESTORES = "SELECT id, project_id FROM feature_store";
   private final static int GET_ALL_FEATURESTORES_S_ID = 1;

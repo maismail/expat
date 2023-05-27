@@ -27,8 +27,8 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -37,7 +37,7 @@ import java.sql.Statement;
 
 public class CreateNS implements MigrateStep {
   
-  private static final Logger LOGGER = LogManager.getLogger(CreateNS.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CreateNS.class);
 
   @Override
   public void migrate() throws MigrationException {

@@ -26,8 +26,8 @@ import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.avro.Schema;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -35,7 +35,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class InferenceSchemaV4Migration implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(InferenceSchemaV4Migration.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(InferenceSchemaV4Migration.class);
   
   protected Connection connection;
   private boolean dryRun;

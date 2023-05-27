@@ -34,9 +34,9 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang.RandomStringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.javatuples.Triplet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -52,7 +52,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ServingApiKeysMigration implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(ServingApiKeysMigration.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ServingApiKeysMigration.class);
   
   protected Connection connection;
   private KubernetesClient kubeClient;

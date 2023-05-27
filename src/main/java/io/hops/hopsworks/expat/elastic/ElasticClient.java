@@ -32,9 +32,9 @@ import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -43,7 +43,7 @@ import java.util.Base64;
 import java.util.Optional;
 
 public class ElasticClient {
-  private final static Logger LOGGER = LogManager.getLogger(ElasticClient.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(ElasticClient.class);
   
   public static void deleteProvenanceProjectIndex(CloseableHttpClient httpClient, HttpHost elastic, Long projectIId,
                                                   String elasticUser, String elasticPass) throws IOException {
@@ -71,7 +71,7 @@ public class ElasticClient {
       } else if (status == 404) {
         LOGGER.info("Index template:{} already deleted", name);
       } else {
-        LOGGER.info(jsonResponse);
+        LOGGER.info(jsonResponse.toString());
         if (!jsonResponse.getJSONObject("error").get("reason").toString().startsWith("no such index template")) {
           throw new IllegalStateException("Could not delete index template:" + name);
         }

@@ -17,16 +17,15 @@
 
 package io.hops.hopsworks.expat.db.dao.user;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class RemoteUserFacade {
-  private static final Logger LOGGER = LogManager.getLogger(RemoteUserFacade.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(RemoteUserFacade.class);
 
   private final static String INSERT_REMOTE = "INSERT INTO remote_user(type, auth_key, uuid, uid) values (?, ?, ?, ?);";
 
@@ -38,7 +37,7 @@ public class RemoteUserFacade {
       insertStmt.setInt(4, remoteUser.getUid());
 
       if (dryRun) {
-        LOGGER.log(Level.INFO, insertStmt.toString());
+        LOGGER.info(insertStmt.toString());
         return;
       }
       insertStmt.execute();

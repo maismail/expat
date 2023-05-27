@@ -23,8 +23,8 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -38,7 +38,7 @@ import java.util.Set;
 
 
 public class GenerateUserCertificates extends GenerateCertificates implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(GenerateProjectCertificates.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GenerateProjectCertificates.class);
   private final static String SELECT_USER_CERTS = "SELECT * FROM user_certs";
   private final static String UPDATE_USER_CERTS =
     "UPDATE user_certs SET user_key = ?, user_cert = ?, user_key_pwd = ? WHERE projectname = ? && username = ?";

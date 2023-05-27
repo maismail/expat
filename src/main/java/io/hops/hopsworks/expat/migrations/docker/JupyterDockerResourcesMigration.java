@@ -22,9 +22,9 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -33,7 +33,7 @@ import java.sql.SQLException;
 
 public class JupyterDockerResourcesMigration implements MigrateStep {
 
-  private static final Logger LOGGER = LogManager.getLogger(JupyterDockerResourcesMigration.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JupyterDockerResourcesMigration.class);
   private final static String GET_ALL_JUPYTER_DOCKER_CONFIGURATIONS =
     "SELECT project_id, team_member, docker_config FROM jupyter_settings";
   private final static String UPDATE_SPECIFIC_JUPYTER_DOCKER_CONFIG =

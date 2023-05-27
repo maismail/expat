@@ -21,8 +21,8 @@ import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.ExpatAbstractFacade;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.JDBCType;
@@ -33,7 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ExpatHdfsInodeFacade extends ExpatAbstractFacade<ExpatHdfsInode> {
-  private static final Logger LOGGER = LogManager.getLogger(ExpatHdfsInodeFacade.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExpatHdfsInodeFacade.class);
   
   private final static String FIND_ROOT_BY_NAME = "SELECT * FROM hops.hdfs_inodes i WHERE parent_id = ? "
     + "AND name = ? AND partition_id = ?";

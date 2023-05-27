@@ -22,10 +22,9 @@ import io.hops.hopsworks.expat.migrations.MigrateStep;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -33,7 +32,7 @@ import java.sql.SQLException;
 
 public class ServingDockerResourcesMigration implements MigrateStep {
 
-  private static final Logger LOGGER = LogManager.getLogger(ServingDockerResourcesMigration.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ServingDockerResourcesMigration.class);
   private final static String UPDATE_SERVING_DOCKER_RESOURCE_CONFIG = "UPDATE serving SET docker_resource_config = ?";
   protected Connection connection;
 
@@ -66,7 +65,7 @@ public class ServingDockerResourcesMigration implements MigrateStep {
       int rowsAffected = updateJSONConfigStmt.executeUpdate();
       connection.commit();
       connection.setAutoCommit(true);
-      LOGGER.log(Level.INFO, "Update successful, " + rowsAffected + " rows affected.");
+      LOGGER.info("Update successful, " + rowsAffected + " rows affected.");
     } catch(SQLException ex) {
       String errorMsg = "Could not migrate serving configurations";
       LOGGER.error(errorMsg);

@@ -31,8 +31,8 @@ import io.hops.hopsworks.expat.migrations.MigrationException;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.io.FileUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -47,7 +47,7 @@ import java.util.Map;
 import java.util.Set;
 
 public abstract class GenerateCertificates {
-  private static final Logger LOGGER = LogManager.getLogger(GenerateCertificates.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GenerateCertificates.class);
 
   protected Path certsBackupDir;
   protected Configuration config;

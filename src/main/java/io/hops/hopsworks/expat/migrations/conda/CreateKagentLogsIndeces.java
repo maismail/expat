@@ -29,8 +29,8 @@ import org.apache.http.HttpHost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -41,7 +41,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class CreateKagentLogsIndeces implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(CreateKagentLogsIndeces.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CreateKagentLogsIndeces.class);
   private static final String GET_CONDA_ENABLED_PROJECTS = "SELECT * FROM project WHERE conda_env = 1";
   
   private Connection connection;

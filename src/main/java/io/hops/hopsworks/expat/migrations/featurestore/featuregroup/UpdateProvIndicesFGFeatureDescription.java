@@ -34,8 +34,8 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -49,7 +49,7 @@ import java.sql.SQLException;
 import java.util.function.Function;
 
 public class UpdateProvIndicesFGFeatureDescription implements MigrateStep {
-  private final static Logger LOGGER = LogManager.getLogger(UpdateProvIndicesFGFeatureDescription.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(UpdateProvIndicesFGFeatureDescription.class);
   
   /************** ELASTIC PROVENANCE ************/
   private final static String GET_ALL_PROJECTS = "SELECT partition_id, inode_pid, inode_name " +

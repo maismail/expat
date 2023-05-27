@@ -19,8 +19,8 @@ package io.hops.hopsworks.expat.executor;
 import io.hops.hopsworks.common.util.ProcessDescriptor;
 import io.hops.hopsworks.common.util.ProcessResult;
 import io.hops.hopsworks.common.util.StreamGobbler;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public final class ProcessExecutor {
-  private final static Logger LOG = LogManager.getLogger(ProcessExecutor.class);
+  private final static Logger LOG = LoggerFactory.getLogger(ProcessExecutor.class);
   private final static int EXECUTOR_THREADS = 20;
   
   private final ExecutorService executorService;

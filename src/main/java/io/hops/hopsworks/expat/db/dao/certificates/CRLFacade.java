@@ -16,9 +16,8 @@
  */
 package io.hops.hopsworks.expat.db.dao.certificates;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -26,7 +25,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class CRLFacade {
-  private static final Logger LOGGER = LogManager.getLogger(CRLFacade.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CRLFacade.class);
   private static final String TABLE_NAME = "pki_crl";
   private static final String INSERT_CRL = String.format("INSERT INTO %s VALUES(?, ?)", TABLE_NAME);
   private static final String GET_CRL = String.format("SELECT * FROM %s WHERE type = ?", TABLE_NAME);
@@ -45,7 +44,7 @@ public class CRLFacade {
       stmt.setBytes(2, crl);
 
       if (dryRun) {
-        LOGGER.log(Level.INFO, "Executing: " + stmt);
+        LOGGER.info("Executing: " + stmt);
       } else {
         stmt.execute();
       }
@@ -56,7 +55,7 @@ public class CRLFacade {
     try (PreparedStatement stmt = connection.prepareStatement(GET_CRL)) {
       stmt.setString(1, type);
       if (dryRun) {
-        LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
+        LOGGER.info("DryRun - Executing " + stmt);
       } else {
         if (stmt.execute()) {
           return stmt.getResultSet().next();

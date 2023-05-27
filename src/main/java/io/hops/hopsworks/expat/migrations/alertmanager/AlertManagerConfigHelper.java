@@ -36,9 +36,9 @@ import io.hops.hopsworks.expat.migrations.alertmanager.dto.Receiver;
 import io.hops.hopsworks.persistence.entity.alertmanager.AlertType;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +50,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class AlertManagerConfigHelper {
-  private static final Logger LOGGER = LogManager.getLogger(AlertManagerConfigHelper.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AlertManagerConfigHelper.class);
 
   public static final String ALERT_MANAGER_DIR = "/srv/hops/alertmanager/alertmanager";
   public static final String ALERT_MANAGER_CONFIG_FILE = "alertmanager.yml";

@@ -3,15 +3,15 @@ package io.hops.hopsworks.expat.db.dao.hdfs.inode;
 import io.hops.hopsworks.common.util.HopsUtils;
 import io.hops.hopsworks.expat.migrations.MigrationException;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Arrays;
 
 public class ExpatInodeController {
-  private static final Logger LOGGER = LogManager.getLogger(ExpatInodeController.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExpatInodeController.class);
   
   private ExpatHdfsInodeFacade inodeFacade;
   

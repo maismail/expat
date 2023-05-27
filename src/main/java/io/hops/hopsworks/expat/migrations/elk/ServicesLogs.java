@@ -30,8 +30,8 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.KeyManagementException;
@@ -39,7 +39,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 
 public class ServicesLogs implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(ServicesLogs.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ServicesLogs.class);
   
   private HttpHost elastic;
   private HttpHost kibana;

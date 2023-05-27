@@ -31,8 +31,8 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -41,7 +41,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class CreateExternalTrainingDatasetInode implements MigrateStep {
-  private static final Logger LOGGER = LogManager.getLogger(CreateExternalTrainingDatasetInode.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(CreateExternalTrainingDatasetInode.class);
   
   protected Connection connection;
   DistributedFileSystemOps dfso = null;

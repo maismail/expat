@@ -11,15 +11,15 @@ import io.hops.hopsworks.expat.migrations.RollbackException;
 import io.hops.hopsworks.expat.migrations.projects.util.HopsClient;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 
 public abstract class FeatureStoreMigration implements MigrateStep {
 
-  protected final Logger LOGGER;
+  protected static final Logger LOGGER = LoggerFactory.getLogger(FeatureStoreMigration.class);
 
   protected Connection connection;
   protected DistributedFileSystemOps dfso = null;
@@ -28,7 +28,6 @@ public abstract class FeatureStoreMigration implements MigrateStep {
   protected ExpatInodeController inodeController;
 
   public FeatureStoreMigration() {
-    LOGGER = LogManager.getLogger(this.getClass());
   }
 
   public abstract void runRollback() throws RollbackException;

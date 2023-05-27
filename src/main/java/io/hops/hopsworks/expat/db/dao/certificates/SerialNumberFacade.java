@@ -16,9 +16,9 @@
  */
 package io.hops.hopsworks.expat.db.dao.certificates;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -26,7 +26,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class SerialNumberFacade {
-  private static final Logger LOGGER = LogManager.getLogger(SerialNumberFacade.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SerialNumberFacade.class);
   private static final String TABLE_NAME = "pki_serial_number";
   private static final String INIT_SERIAL_NUMBER = String.format("INSERT INTO %s VALUES(?, ?)", TABLE_NAME);
   private static final String GET_SERIAL_NUMBER = String.format("SELECT * FROM %s WHERE type = ?", TABLE_NAME);
@@ -45,7 +45,7 @@ public class SerialNumberFacade {
       stmt.setLong(2, number);
 
       if (dryRun) {
-        LOGGER.log(Level.INFO, "Executing " + stmt);
+        LOGGER.info("Executing " + stmt);
       } else {
         stmt.execute();
       }
@@ -56,7 +56,7 @@ public class SerialNumberFacade {
     try (PreparedStatement stmt = connection.prepareStatement(GET_SERIAL_NUMBER)) {
       stmt.setString(1, type);
       if (dryRun) {
-        LOGGER.log(Level.INFO, "DryRun - Executing " + stmt);
+        LOGGER.info("DryRun - Executing " + stmt);
       } else {
         if (stmt.execute()) {
           return stmt.getResultSet().next();

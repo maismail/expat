@@ -27,14 +27,14 @@ import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
 
 public class UpdateMetadata implements MigrateStep {
-  private final static Logger LOGGER = LogManager.getLogger(UpdateMetadata.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(UpdateMetadata.class);
   
   private static String newPath =
     Path.SEPARATOR + "user" + Path.SEPARATOR + "metadata" + Path.SEPARATOR + "uploads" + Path.SEPARATOR;

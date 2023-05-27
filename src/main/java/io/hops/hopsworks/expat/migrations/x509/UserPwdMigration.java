@@ -31,16 +31,15 @@ import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.util.List;
 
 public class UserPwdMigration implements MigrateStep {
 
-  private static final Logger LOGGER = LogManager.getLogger(GenerateProjectCertificates.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GenerateProjectCertificates.class);
   private static final String MASTER_PWD = "5fcf82bc15aef42cd3ec93e6d4b51c04df110cf77ee715f62f3f172ff8ed9de9";
 
   private CertificatesFacade certificatesFacade = new CertificatesFacade();
@@ -57,7 +56,7 @@ public class UserPwdMigration implements MigrateStep {
 
   @Override
   public void migrate() throws MigrationException {
-    LOGGER.log(Level.INFO, "Migrating");
+    LOGGER.info("Migrating");
     Connection connection = null;
     try {
       connection = DbConnectionFactory.getConnection();
@@ -74,12 +73,12 @@ public class UserPwdMigration implements MigrateStep {
       }
       expatUserFacade.updateUserPassword(connection, expatUser, newPwd, dryrun);
       connection.commit();
-      LOGGER.log(Level.INFO, "Successfully changed pwd");
+      LOGGER.info("Successfully changed pwd");
     } catch (Exception e) {
       try {
         connection.rollback();
       } catch (Exception e1) {}
-      LOGGER.log(Level.FATAL, "Error", e);
+      LOGGER.error("Error", e);
     } finally {
       try {
         if (connection != null) {

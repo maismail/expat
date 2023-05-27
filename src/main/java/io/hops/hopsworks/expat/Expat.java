@@ -27,11 +27,11 @@ import io.hops.hopsworks.expat.migrations.conda.CreateKagentLogsIndeces;
 import io.hops.hopsworks.expat.migrations.elk.BeamKibana;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.kohsuke.args4j.OptionHandlerFilter.ALL;
 
@@ -43,7 +43,7 @@ public class Expat {
   @Option(name="-v", usage="Version to migrate to or to rollback")
   private String version;
   
-  private final static Logger LOGGER = LogManager.getLogger(Expat.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(Expat.class);
   public Expat(String[] args) {
     CmdLineParser parser = new CmdLineParser(this);
 

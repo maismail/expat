@@ -6,9 +6,9 @@ import io.hops.hopsworks.expat.migrations.MigrationException;
 import io.hops.hopsworks.expat.migrations.RollbackException;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -18,7 +18,7 @@ import java.sql.Statement;
 
 public class JobsGpuMigration implements MigrateStep {
 
-  private static final Logger LOGGER = LogManager.getLogger(JobsGpuMigration.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobsGpuMigration.class);
   private final static String GET_ALL_JOB_CONFIGURATIONS = "SELECT id, json_config FROM jobs";
   private final static String UPDATE_SPECIFIC_JOB_JSON_CONFIG = "UPDATE jobs SET json_config = ? WHERE id = ?";
   protected Connection connection;

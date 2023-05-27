@@ -19,8 +19,8 @@ package io.hops.hopsworks.expat.db.dao.util;
 import io.hops.hopsworks.expat.db.DbConnectionFactory;
 import io.hops.hopsworks.expat.db.dao.ExpatAbstractFacade;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.JDBCType;
@@ -28,7 +28,7 @@ import java.sql.SQLException;
 
 public class ExpatVariablesFacade  extends ExpatAbstractFacade<ExpatVariables> {
   
-  private static final Logger LOGGER = LogManager.getLogger(ExpatVariablesFacade.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(ExpatVariablesFacade.class);
   private Connection connection;
   
   public ExpatVariablesFacade(Class<ExpatVariables> entityClass) throws SQLException, ConfigurationException {

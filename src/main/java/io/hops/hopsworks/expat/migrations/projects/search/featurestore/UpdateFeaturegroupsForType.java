@@ -32,12 +32,12 @@ import io.hops.hopsworks.expat.migrations.projects.util.XAttrHelper;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.hadoop.fs.Path;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.persistence.jaxb.JAXBContextFactory;
 import org.eclipse.persistence.jaxb.MarshallerProperties;
 import org.eclipse.persistence.oxm.MediaType;
 import org.opensearch.common.CheckedBiConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -55,7 +55,7 @@ import java.util.Map;
 
 public class UpdateFeaturegroupsForType implements MigrateStep {
 
-  private final static Logger LOGGER = LogManager.getLogger(UpdateFeaturegroupsForType.class);
+  private final static Logger LOGGER = LoggerFactory.getLogger(UpdateFeaturegroupsForType.class);
 
   private final static String GET_ALL_FEATURESTORES = "SELECT id, project_id FROM feature_store";
   private final static int GET_ALL_FEATURESTORES_S_ID = 1;
