@@ -27,12 +27,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class CreateOnlineFeaturestoreKafkaOffsetTable extends FeatureStoreMigration {
   private final static Logger LOGGER = LoggerFactory.getLogger(CreateOnlineFeaturestoreKafkaOffsetTable.class);
   
-  private final static String GET_ALL_PROJECTS = "SELECT projectname FROM `hopsworks`.`project`";
+  private final static String GET_ALL_PROJECTS =
+          "SELECT projectname FROM `hopsworks`.`project` WHERE creation_status = 0";
   private final static int GET_ALL_PROJECTS_S_PROJECTNAME = 1;
 
   private final static String CREATE_KAFKA_OFFSETS_TABLE =
@@ -52,7 +55,16 @@ public class CreateOnlineFeaturestoreKafkaOffsetTable extends FeatureStoreMigrat
     try {
       connection.setAutoCommit(false);
 
+      Set<String> databases = getDatabases();
+
       for (String projectName: getProjectNames()) {
+        // check if the online feature store database exists in the first place
+        if (!databases.contains(projectName)) {
+          LOGGER.info("Online feature store database for: " + projectName
+                  + " not found. Skipping the offset table creation");
+          continue;
+        }
+
         String sql = String.format(CREATE_KAFKA_OFFSETS_TABLE, projectName);
         if (!dryRun) {
           try (Statement stmt = connection.createStatement()) {
@@ -102,5 +114,16 @@ public class CreateOnlineFeaturestoreKafkaOffsetTable extends FeatureStoreMigrat
       }
     }
     return projectNames;
+  }
+
+  private Set<String> getDatabases() throws SQLException {
+    Set<String> databases = new HashSet<>();
+    try (ResultSet rs = connection.getMetaData().getCatalogs()) {
+      while (rs.next()) {
+        databases.add(rs.getString(1));
+      }
+    }
+
+    return databases;
   }
 }

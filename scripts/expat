@@ -8,4 +8,4 @@ HOPSWORKS_EAR_HOME="${HOPSWORKS_EAR_HOME:?You should set HOPSWORKS_EAR_HOME}"
 dirname=$(dirname "$0")
 export CLASSPATH=$dirname/../etc/:$dirname/../lib/*:$EXPAT_HADOOP_SHARE/hdfs/*:$EXPAT_HADOOP_SHARE/common/*:$HOPSWORKS_EAR_HOME/lib/*:$HADOOP_HOME/etc/hadoop
 
-java -cp $CLASSPATH io.hops.hopsworks.expat.Expat $@
+java -cp $CLASSPATH -Dlog4j2.configurationFile=log4j2.xml io.hops.hopsworks.expat.Expat $@
