@@ -26,6 +26,7 @@ public abstract class FeatureStoreMigration implements MigrateStep {
   protected boolean dryRun;
   protected String hopsUser;
   protected ExpatInodeController inodeController;
+  protected Configuration conf;
 
   public FeatureStoreMigration() {
   }
@@ -72,7 +73,7 @@ public abstract class FeatureStoreMigration implements MigrateStep {
       throws ConfigurationException, SQLException {
     connection = DbConnectionFactory.getConnection();
 
-    Configuration conf = ConfigurationBuilder.getConfiguration();
+    conf = ConfigurationBuilder.getConfiguration();
     hopsUser = conf.getString(ExpatConf.HOPS_CLIENT_USER);
     if (hopsUser == null) {
       throw new ConfigurationException(ExpatConf.HOPS_CLIENT_USER + " cannot be null");
