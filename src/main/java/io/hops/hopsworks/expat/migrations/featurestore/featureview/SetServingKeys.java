@@ -249,6 +249,8 @@ public class SetServingKeys extends FeatureStoreMigration {
         } else {
           servingKey.setPrefix(join.getPrefix());
         }
+        prefixFeatureNames.add(
+            (servingKey.getPrefix() == null ? "" : servingKey.getPrefix()) + servingKey.getFeatureName());
         tempPrefixFeatureNames.add((join.getPrefix() == null ? "" : join.getPrefix()) + servingKey.getFeatureName());
         servingKeys.add(servingKey);
       }
@@ -269,24 +271,28 @@ public class SetServingKeys extends FeatureStoreMigration {
           FeatureView fv = new FeatureView();
           fv.setId(fvId);
           servingKeys.add(servingKey);
+          prefixFeatureNames.add(
+              (servingKey.getPrefix() == null ? "" : servingKey.getPrefix()) + servingKey.getFeatureName());
           tempPrefixFeatureNames.add(
               (join.getPrefix() == null ? "" : join.getPrefix()) + servingKey.getFeatureName());
         }
       }
-      prefixFeatureNames.addAll(tempPrefixFeatureNames);
     }
-    // pk from label only fg and not left most fg is not mandatory
     Set<Integer> labelOnlyFgs = getLabelOnlyFeatureGroups(fvId);
+    List<ServingKey> filteredServingKeys = Lists.newArrayList();
     for (ServingKey servingKey : servingKeys) {
       if (labelOnlyFgs.contains(servingKey.getFeatureGroup().getId())) {
         // Check if the serving key belongs to a left most fg by checking if the key was required by other fg.
         if (servingKeys.stream()
-            .noneMatch(key -> (servingKey.getPrefix() + servingKey.getFeatureName()).equals(key.getJoinOn()))) {
-          servingKey.setRequired(false);
+            .anyMatch(key -> ((servingKey.getPrefix() == null ? "" : servingKey.getPrefix())
+                + servingKey.getFeatureName()).equals(key.getJoinOn()))) {
+          filteredServingKeys.add(servingKey);
         }
+      } else {
+        filteredServingKeys.add(servingKey);
       }
     }
-    return servingKeys;
+    return filteredServingKeys;
   }
 
   private List<TrainingDatasetJoin> getTdJoin(Integer fvId) throws SQLException {
