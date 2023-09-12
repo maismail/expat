@@ -23,14 +23,22 @@ import org.apache.hadoop.ipc.RemoteException;
 import java.io.IOException;
 
 public class XAttrHelper {
-  private final static String XATTR_PROV_NAMESPACE = "provenance.";
+  private final static String XATTR_PROV_NAMESPACE = "provenance";
   
+  public static void insertXAttr(DistributedFileSystemOps udfso, String path, String namespace, String name,
+                                    byte[] value) throws XAttrException {
+    if (name == null || name.isEmpty()) {
+      throw new XAttrException("missing xattr name");
+    }
+    addXAttrInt(udfso, path, namespace, name, value);
+  }
+    
   public static boolean upsertProvXAttr(DistributedFileSystemOps udfso, String path, String name, byte[] value)
     throws XAttrException {
     if (name == null || name.isEmpty()) {
       throw new XAttrException("missing xattr name");
     }
-    boolean hasPrevious = (getXAttrInt(udfso, path, XATTR_PROV_NAMESPACE, name) != null);
+    boolean hasPrevious = (getXAttr(udfso, path, XATTR_PROV_NAMESPACE, name) != null);
     addXAttrInt(udfso, path, XATTR_PROV_NAMESPACE, name, value);
     return hasPrevious;
   }
@@ -54,7 +62,7 @@ public class XAttrHelper {
     }
   }
   
-  private static byte[] getXAttrInt(DistributedFileSystemOps udfso, String path, String namespace, String name)
+  public static byte[] getXAttr(DistributedFileSystemOps udfso, String path, String namespace, String name)
     throws XAttrException {
     try {
       return udfso.getXAttr(new Path(path), getXAttrName(namespace, name));
@@ -74,6 +82,15 @@ public class XAttrHelper {
   }
   
   private static String getXAttrName(String namespace, String name) {
-    return namespace + name;
+    return namespace + "." + name;
+  }
+  
+  public static void deleteXAttr(DistributedFileSystemOps udfso, String path, String namespace, String name)
+    throws XAttrException {
+    try {
+      udfso.removeXAttr(new Path(path), getXAttrName(namespace, name));
+    } catch (IOException e) {
+      throw new XAttrException("metadata error", e);
+    }
   }
 }
