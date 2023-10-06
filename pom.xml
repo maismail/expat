@@ -252,6 +252,12 @@
                                         <include>conda_env_migrate.sh</include>
                                     </includes>
                                 </resource>
+                                <resource>
+                                    <directory>${basedir}/scripts</directory>
+                                    <includes>
+                                        <include>dags_migrate.sh</include>
+                                    </includes>
+                                </resource>
                             </resources>
                         </configuration>
                     </execution>
