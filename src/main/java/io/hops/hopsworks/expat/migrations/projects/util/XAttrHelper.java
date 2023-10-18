@@ -75,7 +75,12 @@ public class XAttrHelper {
         && e.getMessage().startsWith("At least one of the attributes provided was not found.")) {
         return null;
       }
+      if(e.getClassName().equals("java.io.FileNotFoundException")){
+        return null;
+      }
       throw new XAttrException("metadata error", e);
+    } catch (java.io.FileNotFoundException e){
+      return null;
     } catch (IOException e) {
       throw new XAttrException("metadata error", e);
     }
