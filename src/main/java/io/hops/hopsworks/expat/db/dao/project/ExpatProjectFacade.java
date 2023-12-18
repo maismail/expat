@@ -21,10 +21,14 @@ import io.hops.hopsworks.expat.db.dao.ExpatAbstractFacade;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 
 import java.sql.Connection;
+import java.sql.JDBCType;
 import java.sql.SQLException;
+import java.util.List;
 
 public class ExpatProjectFacade extends ExpatAbstractFacade<ExpatProject> {
   private Connection connection;
+
+  private static final String FIND_BY_NAME = "SELECT * FROM hopsworks.project WHERE projectname = ?";
   
   public ExpatProjectFacade(Class<ExpatProject> entityClass) throws SQLException, ConfigurationException {
     super(entityClass);
@@ -49,5 +53,18 @@ public class ExpatProjectFacade extends ExpatAbstractFacade<ExpatProject> {
   @Override
   public String findByIdQuery() {
     return "SELECT * FROM project WHERE id = ?";
+  }
+
+  public ExpatProject findByProjectName(String name)
+    throws IllegalAccessException, SQLException, InstantiationException {
+    List<ExpatProject> projectList = this.findByQuery(FIND_BY_NAME, new Object[]{name},
+      new JDBCType[]{JDBCType.VARCHAR});
+    if (projectList.isEmpty()) {
+      return null;
+    }
+    if (projectList.size() > 1) {
+      throw new IllegalStateException("More than one results found");
+    }
+    return projectList.get(0);
   }
 }

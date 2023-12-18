@@ -511,6 +511,66 @@ public class ElasticClient {
       }
     }
   }
+
+  public static JSONObject getIndicesByRegex(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                     String elasticPass, String indicesPattern)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments(indicesPattern)
+        .setParameter("format", "json");
+      HttpGet request = new HttpGet(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Query elastic indices with pattern: {}", indicesPattern);
+        return jsonResponse;
+      } else {
+        throw new IllegalStateException("Could not query elastic indices:" + jsonResponse.toString(4));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
+
+  public static JSONObject search(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
+                                            String elasticPass, String index, String body)
+    throws URISyntaxException, IOException {
+    CloseableHttpResponse response = null;
+    try {
+      URIBuilder uriBuilder = new URIBuilder();
+      uriBuilder
+        .setPathSegments(index, "_search")
+        .setParameter("format", "json");
+      HttpPost request = new HttpPost(uriBuilder.build());
+      request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+      String encodedAuth = Base64.getEncoder().encodeToString((elasticUser + ":" + elasticPass).getBytes());
+      request.addHeader(HttpHeaders.AUTHORIZATION, "Basic " + encodedAuth);;
+      HttpEntity entity = new ByteArrayEntity(body.getBytes(StandardCharsets.UTF_8));
+      request.setEntity(entity);
+      response = httpClient.execute(elastic, request);
+      JSONObject jsonResponse = new JSONObject(EntityUtils.toString(response.getEntity()));
+      int status = response.getStatusLine().getStatusCode();
+      if (status == 200) {
+        LOGGER.info("Query elastic index: {}", index);
+        return jsonResponse;
+      } else {
+        throw new IllegalStateException("Could not query elastic indices:" + jsonResponse.toString(4));
+      }
+    } finally {
+      if (response != null) {
+        response.close();
+      }
+    }
+  }
   
   public static void deleteSnapshot(CloseableHttpClient httpClient, HttpHost elastic, String elasticUser,
                                     String elasticPass, String repoName, String snapshotName)

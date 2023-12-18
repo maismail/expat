@@ -37,9 +37,12 @@ public class ExpatHdfsInodeFacade extends ExpatAbstractFacade<ExpatHdfsInode> {
   
   private final static String FIND_ROOT_BY_NAME = "SELECT * FROM hops.hdfs_inodes i WHERE parent_id = ? "
     + "AND name = ? AND partition_id = ?";
+
+  private final static String FIND_INODE_BY_ID = "SELECT * FROM hops.hdfs_inodes i WHERE id = ? ";
   
   private Connection connection;
   private PreparedStatement findRootByName;
+  private PreparedStatement findInodeById;
   
   protected ExpatHdfsInodeFacade(Class<ExpatHdfsInode> entityClass) throws SQLException, ConfigurationException {
     super(entityClass);
@@ -74,6 +77,30 @@ public class ExpatHdfsInodeFacade extends ExpatAbstractFacade<ExpatHdfsInode> {
     // LOGGER.info("getRootNode: " + name);
     long partitionId = HopsUtils.calculatePartitionId(HopsUtils.ROOT_INODE_ID, name, HopsUtils.ROOT_DIR_DEPTH + 1);
     return findByInodePK(HopsUtils.ROOT_INODE_ID, name, partitionId);
+  }
+
+  public ExpatHdfsInode findInodeById(long inodeId)
+    throws SQLException, MigrationException {
+    findInodeById = connection.prepareStatement(FIND_INODE_BY_ID);
+    findInodeById.setLong(1, inodeId);
+
+    List<ExpatHdfsInode> resultList = new ArrayList<>();
+    ResultSet result = findInodeById.executeQuery();
+    while (result.next()) {
+      resultList.add(new ExpatHdfsInode().getEntity(result));
+    }
+
+    findInodeById.close();
+
+    if (resultList.size() == 1) {
+      return resultList.get(0);
+    } else if (resultList.size() > 1) {
+      LOGGER.warn("Found more than one inode with id: " + inodeId);
+      throw new MigrationException("Found more than one root inode with name: " + inodeId);
+    } else {
+      LOGGER.warn("Found no inode with id: " + inodeId);
+      return null;
+    }
   }
   
   public ExpatHdfsInode findByInodePK(long parentId, String name, long partitionId)

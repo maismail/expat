@@ -29,6 +29,10 @@ public class ExpatInodeController {
     // LOGGER.info("getInodeAtPath: " + path);
     return getInode(path);
   }
+
+  public ExpatHdfsInode getInodeById(long inodeId) throws MigrationException, SQLException {
+    return inodeFacade.findInodeById(inodeId);
+  }
   
   private ExpatHdfsInode getInode(String path) throws MigrationException, SQLException {
     // LOGGER.info("getInode: " + path);
