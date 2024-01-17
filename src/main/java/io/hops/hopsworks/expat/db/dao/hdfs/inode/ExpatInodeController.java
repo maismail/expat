@@ -8,7 +8,9 @@ import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class ExpatInodeController {
   private static final Logger LOGGER = LoggerFactory.getLogger(ExpatInodeController.class);
@@ -33,6 +35,29 @@ public class ExpatInodeController {
   public ExpatHdfsInode getInodeById(long inodeId) throws MigrationException, SQLException {
     return inodeFacade.findInodeById(inodeId);
   }
+  
+  public ExpatHdfsInode getInode(long inodeId, String inodeName, long partitionId)
+    throws MigrationException, SQLException {
+    return inodeFacade.findByInodePK(inodeId, inodeName, partitionId);
+  }
+  
+  public String getPath(ExpatHdfsInode i) throws SQLException, IllegalAccessException, InstantiationException {
+    if(i == null) {
+      throw new IllegalArgumentException("Inode was not provided.");
+    }
+    List<String> pathComponents = new ArrayList<>();
+    ExpatHdfsInode parent = i;
+    while (parent.getId() != 1) {
+      pathComponents.add(parent.getName());
+      parent = inodeFacade.find(parent.getParentId());
+    }
+    StringBuilder path = new StringBuilder();
+    for (int j = pathComponents.size() - 1; j >= 0; j--) {
+      path.append("/").append(pathComponents.get(j));
+    }
+    return path.toString();
+  }
+  
   
   private ExpatHdfsInode getInode(String path) throws MigrationException, SQLException {
     // LOGGER.info("getInode: " + path);
