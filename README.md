@@ -1,5 +1,6 @@
 # Introduction
 
+
 Expat is a tool of the Hopsworks ecosystem which is used for upgrading Hopsworks existing installations.
 Expat is versioned and it follows the same versions as Hopsworks. The migration steps to be executed are defined in 
 ``resources/expat-site-default.xml`` under the ``<version-*>`` tags. When upgrading an existing Hopsworks cluster, 
