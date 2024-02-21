@@ -137,6 +137,10 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
             String projectName = projectInode.getName();
             ExpatHdfsInode modelDatasetInode = expatInodeController.getInodeAtPath(
                     String.format("/Projects/%s/Models", projectName));
+            if (modelDatasetInode == null) {
+              LOGGER.info("Project " + projectName + " does NOT have a Models dataset. Continue...");
+              continue;
+            }
             String query = "{\"track_total_hits\":true,\"from\":0,\"size\":10000,\"query\":{\"bool\":" +
                     "{\"must\":[{\"term\":{\"entry_type\":" +
                     "{\"value\":\"state\",\"boost\":1.0}}},{\"bool\":{\"should\":[{\"term\":{\"project_i_id\":" +
