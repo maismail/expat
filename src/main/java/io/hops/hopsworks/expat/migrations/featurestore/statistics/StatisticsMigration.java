@@ -65,6 +65,7 @@ public class StatisticsMigration implements MigrateStep {
   private static final String FEATURE_GROUP_DESCRIPTIVE_STATISTICS_TABLE_NAME = "feature_group_descriptive_statistics";
   private static final String FEATURE_GROUP_STATISTICS_TABLE_NAME = "feature_group_statistics";
   private static final String FEATURE_GROUP_COMMITS_TABLE_NAME = "feature_group_commit";
+  private static final String TRAINING_DATASET_STATISTICS_TABLE_NAME = "training_dataset_statistics";
   private static final String TRAINING_DATASET_DESCRIPTIVE_STATISTICS_TABLE_NAME =
     "training_dataset_descriptive_statistics";
   private static final String TEST_DATASET_DESCRIPTIVE_STATISTICS_TABLE_NAME = "test_dataset_descriptive_statistics";
@@ -116,6 +117,12 @@ public class StatisticsMigration implements MigrateStep {
   
   private final static String DELETE_FEATURE_DESCRIPTIVE_STATISTICS =
     String.format("DELETE FROM %s WHERE id = ?", FEATURE_DESCRIPTIVE_STATISTICS_TABLE_NAME);
+  
+  private final static String DELETE_FEATURE_GROUP_STATISTICS =
+    String.format("DELETE FROM %s WHERE id = ?", FEATURE_GROUP_STATISTICS_TABLE_NAME);
+  
+  private final static String DELETE_TRAINING_DATASET_STATISTICS =
+    String.format("DELETE FROM %s WHERE id = ?", TRAINING_DATASET_STATISTICS_TABLE_NAME);
   
   private final static String FEATURE_GROUP = "FEATURE_GROUP";
   private final static String TRAINING_DATASET = "TRAINING_DATASET";
@@ -202,15 +209,19 @@ public class StatisticsMigration implements MigrateStep {
     throws SQLException, MigrationException, IOException, IllegalAccessException, InstantiationException {
     List<Integer> fdsIds = new ArrayList<>(); // keep track of temporary fds to be removed
     HashMap<Integer, Long> fgsEarliestFgCommitIds; // <fg id, earliest fg commit id>
-    boolean updateFgStatistics = false; // whether to update feature group statistics
+    boolean updateFgStatistics = false; // whether one or more fg stats need to be updated
+    boolean deleteFgStatistics = false; // whether one or more fg stats need to be deleted
+    boolean deleteTdStatistics = false; // whether one or more td stats need to be deleted
     
     // connections
     PreparedStatement insertFdsStmt = null;
     PreparedStatement insertFgFdsStmt = null;
     PreparedStatement updateFgsStmt = null;
+    PreparedStatement deleteFgsStmt = null;
     PreparedStatement insertTrainDatasetFdsStmt = null;
     PreparedStatement insertTestDatasetFdsStmt = null;
     PreparedStatement insertValDatasetFdsStmt = null;
+    PreparedStatement deleteTdsStmt = null;
     
     try {
       // earliest fg commit ids
@@ -218,21 +229,23 @@ public class StatisticsMigration implements MigrateStep {
       
       // fds connection
       insertFdsStmt = connection.prepareStatement(INSERT_FEATURE_DESCRIPTIVE_STATISTICS, new String[]{"id"});
-      // fg stats connection
-      insertFgFdsStmt = connection.prepareStatement(INSERT_FEATURE_GROUP_DESCRIPTIVE_STATISTICS); // intermediate
       // table between fg stats and fds
+      insertFgFdsStmt = connection.prepareStatement(INSERT_FEATURE_GROUP_DESCRIPTIVE_STATISTICS); // intermediate
+      // fg stats connection
       updateFgsStmt = connection.prepareStatement(UPDATE_FEATURE_GROUP_DESCRIPTIVE_STATISTICS);
+      deleteFgsStmt = connection.prepareStatement(DELETE_FEATURE_GROUP_STATISTICS);
       // td stats connections
       insertTrainDatasetFdsStmt = connection.prepareStatement(INSERT_TRAINING_DATASET_DESCRIPTIVE_STATISTICS);
       insertTestDatasetFdsStmt = connection.prepareStatement(INSERT_TEST_DATASET_DESCRIPTIVE_STATISTICS);
       insertValDatasetFdsStmt = connection.prepareStatement(INSERT_VAL_DATASET_DESCRIPTIVE_STATISTICS);
+      deleteTdsStmt = connection.prepareStatement(DELETE_TRAINING_DATASET_STATISTICS);
       
       // per fds - migrate stats
       while (fdsResultSet.next()) {
         // extract fds column values
         int statisticsId = fdsResultSet.getInt(1); // this ID is the same for fg/td statistics and temporary fd stats
         String entityType = fdsResultSet.getString(2); // entity type is temp. stored in feature_type column
-        int entityId = fdsResultSet.getInt(3); // feature group id, used to look for earliest commit id
+        int entityId = fdsResultSet.getInt(3); // fg id, used to look for earliest commit id, or td id
         long commitTime = fdsResultSet.getLong(4); // commit time is temp. stored in count column
         long windowEndCommitTime = fdsResultSet.getLong(5); // window end commit time
         String filePath = fdsResultSet.getString(6); // extended_stats_path contains the old stats file path
@@ -253,15 +266,34 @@ public class StatisticsMigration implements MigrateStep {
             windowEndCommitTime = commitTime; // for non-time-travel-enabled fgs, set end window as committime
           }
           // migrate fg stats
-          migrateFeatureGroupStatistics(statisticsId, filePath, windowStartCommitTime, windowEndCommitTime,
-            insertFdsStmt, insertFgFdsStmt);
-          // set window start commit time if time travel-enabled fg
-          if (updateFeatureGroupStatisticsCommitWindow(updateFgsStmt, statisticsId, windowStartCommitTime)) {
-            updateFgStatistics = true;
+          boolean fdsInserted = migrateFeatureGroupStatistics(statisticsId, filePath, windowStartCommitTime,
+            windowEndCommitTime, insertFdsStmt, insertFgFdsStmt);
+          
+          if (fdsInserted) {
+            // set window start commit time if time travel-enabled fg
+            if (updateFeatureGroupStatisticsCommitWindow(updateFgsStmt, statisticsId, windowStartCommitTime)) {
+              updateFgStatistics = true;
+            }
+          } else {  // if fds not inserted
+            // this fg statistics could not be migrated to DB, so we delete the fg stats row.
+            LOGGER.info(String.format(
+              "[migrateFeatureDescriptiveStatistics] -- marking fg statistics for deletion, with id '%s' and " +
+                "feature group id '%s'", statisticsId, entityId));
+            deleteFeatureGroupStatistics(deleteFgsStmt, statisticsId);
+            deleteFgStatistics = true;
           }
         } else if (entityType.equals(TRAINING_DATASET)) {
-          migrateTrainingDatasetStatistics(statisticsId, filePath, commitTime, insertFdsStmt, insertTrainDatasetFdsStmt,
-            insertTestDatasetFdsStmt, insertValDatasetFdsStmt);
+          boolean fdsInserted = migrateTrainingDatasetStatistics(statisticsId, filePath, commitTime, insertFdsStmt,
+            insertTrainDatasetFdsStmt, insertTestDatasetFdsStmt, insertValDatasetFdsStmt);
+          
+          if (!fdsInserted) {   // if fds not inserted
+            // this td statistics could not be migrated to DB, so we delete the td stats row.
+            LOGGER.info(String.format(
+              "[migrateFeatureDescriptiveStatistics] -- marking td statistics for deletion, with id '%s' and " +
+                "training dataset id '%s'", statisticsId, entityId));
+            deleteTrainingDatasetStatistics(deleteTdsStmt, statisticsId);
+            deleteTdStatistics = true;
+          }
         } else {
           throw new MigrationException(
             "Unknown entity type: " + entityType + ". Expected values are " + FEATURE_GROUP + " or " +
@@ -279,6 +311,26 @@ public class StatisticsMigration implements MigrateStep {
         }
       }
       
+      // delete feature group statistics that failed to be migrated
+      if (deleteFgStatistics) {
+        if (dryRun) {
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s", deleteFgsStmt.toString()));
+        } else {
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s", deleteFgsStmt.toString()));
+          deleteFgsStmt.executeBatch();
+        }
+      }
+      
+      // delete training dataset statistics that failed to be migrated
+      if (deleteTdStatistics) {
+        if (dryRun) {
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS: %s", deleteTdsStmt.toString()));
+        } else {
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS: %s", deleteTdsStmt.toString()));
+          deleteTdsStmt.executeBatch();
+        }
+      }
+
       // delete temporary feature descriptive statistics
       deleteFeatureDescriptiveStatistics(fdsIds);
     } finally {
@@ -291,6 +343,9 @@ public class StatisticsMigration implements MigrateStep {
       if (updateFgsStmt != null) {
         updateFgsStmt.close();
       }
+      if (deleteFgsStmt != null) {
+        deleteFgsStmt.close();
+      }
       if (insertTrainDatasetFdsStmt != null) {
         insertTrainDatasetFdsStmt.close();
       }
@@ -299,6 +354,9 @@ public class StatisticsMigration implements MigrateStep {
       }
       if (insertValDatasetFdsStmt != null) {
         insertValDatasetFdsStmt.close();
+      }
+      if (deleteTdsStmt != null) {
+        deleteTdsStmt.close();
       }
     }
   }
@@ -332,11 +390,16 @@ public class StatisticsMigration implements MigrateStep {
     deleteFeatureDescriptiveStatistics(fdsIds);
   }
   
-  private void migrateFeatureGroupStatistics(int statisticsId, String filePath, Long windowStartCommitTime,
+  private boolean migrateFeatureGroupStatistics(int statisticsId, String filePath, Long windowStartCommitTime,
     Long windowEndCommitTime, PreparedStatement insertFdsStmt, PreparedStatement insertIntermediateStmt)
     throws SQLException, IOException, MigrationException, IllegalAccessException, InstantiationException {
     // read and parse old hdfs file with statistics
     Collection<ExpatFeatureDescriptiveStatistics> fdsList = readAndParseLegacyStatistics(filePath);
+    if (fdsList == null) {
+      LOGGER.info(String.format("[migrateFeatureGroupStatistics] -- skipping fds row due to invalid " +
+          "statistics file at '%s'", filePath));
+      return false;  // skipping fds
+    }
     
     // get stats file parent directory
     Path oldFilePath = new Path(filePath);
@@ -356,16 +419,18 @@ public class StatisticsMigration implements MigrateStep {
       LOGGER.info(String.format("[migrateFeatureGroupStatistics] Remove old hdfs stats file at: %s", filePath));
       dfso.rm(filePath, false);
     }
+    
+    return true; // fds stored in the database
   }
   
-  private void migrateTrainingDatasetStatistics(int statisticsId, String filePath, Long commitTime,
+  private boolean migrateTrainingDatasetStatistics(int statisticsId, String filePath, Long commitTime,
     PreparedStatement insertFdsStmt, PreparedStatement insertTrainDatasetFdsStmt,
     PreparedStatement insertTestDatasetFdsStmt, PreparedStatement insertValDatasetFdsStmt)
     throws SQLException, IOException, MigrationException, IllegalAccessException, InstantiationException {
     
     if (!dfso.exists(filePath)) {
-      LOGGER.info("[migrateTrainingDatasetStatistics] file path does not exist: " + filePath);
-      return;
+      LOGGER.info("[migrateTrainingDatasetStatistics] statistics file does not exist: " + filePath);
+      return false;
     }
     
     // get owner, permissions and group
@@ -378,6 +443,12 @@ public class StatisticsMigration implements MigrateStep {
       // train split stats
       String trainSplitFilePath = filePath + "/" + SPLIT_NAME_TRAIN + "_" + commitTime + ".json";
       Collection<ExpatFeatureDescriptiveStatistics> fdsList = readAndParseLegacyStatistics(trainSplitFilePath);
+      if (fdsList == null) {
+        LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
+          "statistics file at '%s'", filePath));
+        return false;  // skipping fds
+      }
+      // inserts fds and intermediate (train_fds) rows
       insertFeatureDescriptiveStatistics(statisticsId, fdsList, insertTrainDatasetFdsStmt, insertFdsStmt, null,
         commitTime, false, SPLIT_NAME_TRAIN, parentDirPath, fileStatus);
       if (dryRun) {
@@ -392,6 +463,12 @@ public class StatisticsMigration implements MigrateStep {
       // test split stats
       String testSplitFilePath = filePath + "/" + SPLIT_NAME_TEST + "_" + commitTime + ".json";
       fdsList = readAndParseLegacyStatistics(testSplitFilePath);
+      if (fdsList == null) {
+        LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
+          "statistics file at '%s'", filePath));
+        return false;  // skipping fds
+      }
+      // inserts fds and intermediate (test_fds) rows
       insertFeatureDescriptiveStatistics(statisticsId, fdsList, insertTestDatasetFdsStmt, insertFdsStmt, null,
         commitTime, false, SPLIT_NAME_TEST, parentDirPath, fileStatus);
       if (dryRun) {
@@ -407,6 +484,12 @@ public class StatisticsMigration implements MigrateStep {
       String valSplitFilePath = filePath + "/" + SPLIT_NAME_VALIDATION + "_" + commitTime + ".json";
       if (dfso.exists(valSplitFilePath)) {
         fdsList = readAndParseLegacyStatistics(valSplitFilePath);
+        if (fdsList == null) {
+          LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
+            "statistics file at '%s'", filePath));
+          return false;  // skipping fds
+        }
+        // inserts fds and intermediate (val_fds) rows
         insertFeatureDescriptiveStatistics(statisticsId, fdsList, insertValDatasetFdsStmt, insertFdsStmt, null,
           commitTime, false, SPLIT_NAME_VALIDATION, parentDirPath, fileStatus);
         if (dryRun) {
@@ -420,8 +503,14 @@ public class StatisticsMigration implements MigrateStep {
       }
     } else { // otherwise, either whole training dataset statistics or tr. functions statistics json file
       Collection<ExpatFeatureDescriptiveStatistics> fdsList = readAndParseLegacyStatistics(filePath);
+      if (fdsList == null) {
+        LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
+          "statistics file at '%s'", filePath));
+        return false;  // skipping fds
+      }
       boolean beforeTransformation = filePath.contains("transformation_fn");
       Path parentDirPath = oldFilePath.getParent();
+      // inserts fds and intermediate (train_fds) rows
       insertFeatureDescriptiveStatistics(statisticsId, fdsList, insertTrainDatasetFdsStmt, insertFdsStmt, null,
         commitTime, beforeTransformation, null, parentDirPath, fileStatus);
       if (dryRun) {
@@ -431,6 +520,8 @@ public class StatisticsMigration implements MigrateStep {
         dfso.rm(filePath, false); // remove old hfds file
       }
     }
+    
+    return true;  // fds stored in the database
   }
   
   private HashMap<Integer, Long> getEarliestFgCommitIds() throws SQLException {
@@ -457,12 +548,23 @@ public class StatisticsMigration implements MigrateStep {
     }
   }
   
-  private Collection<ExpatFeatureDescriptiveStatistics> readAndParseLegacyStatistics(String filePath)
-    throws IOException {
+  private Collection<ExpatFeatureDescriptiveStatistics> readAndParseLegacyStatistics(String filePath) {
     // read file content
-    String fileContent = dfso.cat(filePath);
-    // parse feature descriptive statistics
-    return ExpatFeatureDescriptiveStatistics.parseStatisticsJsonString(fileContent);
+    String fileContent;
+    try {
+      if (!dfso.exists(filePath)) {
+        LOGGER.info(String.format("[readAndParseLegacyStatistics] statistics file does not exist at '%s'",filePath));
+        return null; // no file content to parse
+      }
+      fileContent = dfso.cat(filePath);
+      
+      // parse feature descriptive statistics
+      return ExpatFeatureDescriptiveStatistics.parseStatisticsJsonString(fileContent);
+    } catch (IOException e) {
+      LOGGER.info(String.format("[readAndParseLegacyStatistics] failed to read the file '%s' with error '%s'",
+        filePath, e.getMessage()));
+      return null; // no file content to parse
+    }
   }
   
   private void insertFeatureDescriptiveStatistics(int statisticsId,
@@ -651,6 +753,18 @@ public class StatisticsMigration implements MigrateStep {
     updateFgsStmt.setInt(2, fgStatisticsId);
     updateFgsStmt.addBatch();
     return true;
+  }
+  
+  private void deleteFeatureGroupStatistics(PreparedStatement deleteFgsStmt, Integer fgStatisticsId)
+      throws SQLException {
+    deleteFgsStmt.setInt(1, fgStatisticsId);
+    deleteFgsStmt.addBatch();
+  }
+  
+  private void deleteTrainingDatasetStatistics(PreparedStatement deleteTdsStmt, Integer tdStatisticsId)
+      throws SQLException {
+    deleteTdsStmt.setInt(1, tdStatisticsId);
+    deleteTdsStmt.addBatch();
   }
   
   private byte[] convertPercentilesToByteArray(List<Double> percentilesList) {
