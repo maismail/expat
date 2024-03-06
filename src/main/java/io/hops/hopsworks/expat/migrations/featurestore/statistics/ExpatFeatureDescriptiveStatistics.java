@@ -18,7 +18,11 @@ package io.hops.hopsworks.expat.migrations.featurestore.statistics;
  */
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.opensearch.common.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,6 +30,9 @@ import java.util.HashMap;
 import java.util.List;
 
 public class ExpatFeatureDescriptiveStatistics {
+  
+  protected static final Logger LOGGER = LoggerFactory.getLogger(ExpatFeatureDescriptiveStatistics.class);
+  
   public Integer id;
   public String featureType;
   public String featureName;
@@ -55,14 +62,28 @@ public class ExpatFeatureDescriptiveStatistics {
   public String extendedStatistics;
   
   public static Collection<ExpatFeatureDescriptiveStatistics> parseStatisticsJsonString(String content) {
-    JSONArray columns = (new JSONObject(content)).getJSONArray("columns");
-    HashMap<String, ExpatFeatureDescriptiveStatistics> descFdsMap = new HashMap<>();
-    for (int i = 0; i < columns.length(); i++) {
-      JSONObject colStats = (JSONObject) columns.get(i);
-      ExpatFeatureDescriptiveStatistics fds = ExpatFeatureDescriptiveStatistics.fromJSON(colStats);
-      descFdsMap.merge(fds.featureName, fds, (fds1, fds2) -> ExpatFeatureDescriptiveStatistics.merge(fds1, fds2));
+    if (Strings.isNullOrEmpty(content)) {
+      LOGGER.info(String.format("[parseStatisticsJsonString] file content is null or empty"));
+      return null;
     }
-    return descFdsMap.values();
+    try {
+      JSONObject jsonContent = new JSONObject(content);
+      if (!jsonContent.has("columns")) {
+        LOGGER.info(String.format("[parseStatisticsJsonString] statistics json does not contain a 'columns' key"));
+        return null;
+      }
+      JSONArray columns = jsonContent.getJSONArray("columns");
+      HashMap<String, ExpatFeatureDescriptiveStatistics> descFdsMap = new HashMap<>();
+      for (int i = 0; i < columns.length(); i++) {
+        JSONObject colStats = (JSONObject) columns.get(i);
+        ExpatFeatureDescriptiveStatistics fds = ExpatFeatureDescriptiveStatistics.fromJSON(colStats);
+        descFdsMap.merge(fds.featureName, fds, (fds1, fds2) -> ExpatFeatureDescriptiveStatistics.merge(fds1, fds2));
+      }
+      return descFdsMap.values();
+    } catch (JSONException e) {
+      LOGGER.info(String.format("[parseStatisticsJsonString] file content is not a valid JSON"));
+      return null;
+    }
   }
   
   public static ExpatFeatureDescriptiveStatistics fromJSON(JSONObject statsJson) {
