@@ -70,6 +70,7 @@ public class StatisticsMigration implements MigrateStep {
     "training_dataset_descriptive_statistics";
   private static final String TEST_DATASET_DESCRIPTIVE_STATISTICS_TABLE_NAME = "test_dataset_descriptive_statistics";
   private static final String VAL_DATASET_DESCRIPTIVE_STATISTICS_TABLE_NAME = "val_dataset_descriptive_statistics";
+  private static final String FEATURE_STORE_ACTIVITY_TABLE_NAME = "feature_store_activity";
   
   private static final String SPLIT_NAME_TRAIN = "train";
   private static final String SPLIT_NAME_TEST = "test";
@@ -121,8 +122,14 @@ public class StatisticsMigration implements MigrateStep {
   private final static String DELETE_FEATURE_GROUP_STATISTICS =
     String.format("DELETE FROM %s WHERE id = ?", FEATURE_GROUP_STATISTICS_TABLE_NAME);
   
+  private final static String DELETE_FEATURE_GROUP_STATISTICS_ACTIVITY =
+    String.format("DELETE FROM %s WHERE feature_group_statistics_id = ?", FEATURE_STORE_ACTIVITY_TABLE_NAME);
+  
   private final static String DELETE_TRAINING_DATASET_STATISTICS =
     String.format("DELETE FROM %s WHERE id = ?", TRAINING_DATASET_STATISTICS_TABLE_NAME);
+  
+  private final static String DELETE_TRAINING_DATASET_STATISTICS_ACTIVITY =
+    String.format("DELETE FROM %s WHERE training_dataset_statistics_id = ?", FEATURE_STORE_ACTIVITY_TABLE_NAME);
   
   private final static String FEATURE_GROUP = "FEATURE_GROUP";
   private final static String TRAINING_DATASET = "TRAINING_DATASET";
@@ -218,10 +225,12 @@ public class StatisticsMigration implements MigrateStep {
     PreparedStatement insertFgFdsStmt = null;
     PreparedStatement updateFgsStmt = null;
     PreparedStatement deleteFgsStmt = null;
+    PreparedStatement deleteFgsActStmt = null;
     PreparedStatement insertTrainDatasetFdsStmt = null;
     PreparedStatement insertTestDatasetFdsStmt = null;
     PreparedStatement insertValDatasetFdsStmt = null;
     PreparedStatement deleteTdsStmt = null;
+    PreparedStatement deleteTdsActStmt = null;
     
     try {
       // earliest fg commit ids
@@ -234,11 +243,13 @@ public class StatisticsMigration implements MigrateStep {
       // fg stats connection
       updateFgsStmt = connection.prepareStatement(UPDATE_FEATURE_GROUP_DESCRIPTIVE_STATISTICS);
       deleteFgsStmt = connection.prepareStatement(DELETE_FEATURE_GROUP_STATISTICS);
+      deleteFgsActStmt = connection.prepareStatement(DELETE_FEATURE_GROUP_STATISTICS_ACTIVITY);
       // td stats connections
       insertTrainDatasetFdsStmt = connection.prepareStatement(INSERT_TRAINING_DATASET_DESCRIPTIVE_STATISTICS);
       insertTestDatasetFdsStmt = connection.prepareStatement(INSERT_TEST_DATASET_DESCRIPTIVE_STATISTICS);
       insertValDatasetFdsStmt = connection.prepareStatement(INSERT_VAL_DATASET_DESCRIPTIVE_STATISTICS);
       deleteTdsStmt = connection.prepareStatement(DELETE_TRAINING_DATASET_STATISTICS);
+      deleteTdsActStmt = connection.prepareStatement(DELETE_TRAINING_DATASET_STATISTICS_ACTIVITY);
       
       // per fds - migrate stats
       while (fdsResultSet.next()) {
@@ -280,6 +291,7 @@ public class StatisticsMigration implements MigrateStep {
               "[migrateFeatureDescriptiveStatistics] -- marking fg statistics for deletion, with id '%s' and " +
                 "feature group id '%s'", statisticsId, entityId));
             deleteFeatureGroupStatistics(deleteFgsStmt, statisticsId);
+            deleteFeatureGroupStatisticsActivity(deleteFgsActStmt, statisticsId);
             deleteFgStatistics = true;
           }
         } else if (entityType.equals(TRAINING_DATASET)) {
@@ -292,6 +304,7 @@ public class StatisticsMigration implements MigrateStep {
               "[migrateFeatureDescriptiveStatistics] -- marking td statistics for deletion, with id '%s' and " +
                 "training dataset id '%s'", statisticsId, entityId));
             deleteTrainingDatasetStatistics(deleteTdsStmt, statisticsId);
+            deleteTrainingDatasetStatisticsActivity(deleteTdsActStmt, statisticsId);
             deleteTdStatistics = true;
           }
         } else {
@@ -315,9 +328,14 @@ public class StatisticsMigration implements MigrateStep {
       if (deleteFgStatistics) {
         if (dryRun) {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s", deleteFgsStmt.toString()));
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS ACTIVITY: %s",
+            deleteFgsActStmt.toString()));
         } else {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS: %s", deleteFgsStmt.toString()));
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete FGS ACTIVITY: %s",
+            deleteFgsActStmt.toString()));
           deleteFgsStmt.executeBatch();
+          deleteFgsActStmt.executeBatch();
         }
       }
       
@@ -325,9 +343,13 @@ public class StatisticsMigration implements MigrateStep {
       if (deleteTdStatistics) {
         if (dryRun) {
           LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS: %s", deleteTdsStmt.toString()));
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS ACTIVITY: %s",
+            deleteTdsActStmt.toString()));
         } else {
-          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS: %s", deleteTdsStmt.toString()));
+          LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete TDS ACTIVITY: %s",
+            deleteTdsActStmt.toString()));
           deleteTdsStmt.executeBatch();
+          deleteTdsActStmt.executeBatch();
         }
       }
 
@@ -346,6 +368,9 @@ public class StatisticsMigration implements MigrateStep {
       if (deleteFgsStmt != null) {
         deleteFgsStmt.close();
       }
+      if (deleteFgsActStmt != null) {
+        deleteFgsActStmt.close();
+      }
       if (insertTrainDatasetFdsStmt != null) {
         insertTrainDatasetFdsStmt.close();
       }
@@ -357,6 +382,9 @@ public class StatisticsMigration implements MigrateStep {
       }
       if (deleteTdsStmt != null) {
         deleteTdsStmt.close();
+      }
+      if (deleteTdsActStmt != null) {
+        deleteTdsActStmt.close();
       }
     }
   }
@@ -761,10 +789,22 @@ public class StatisticsMigration implements MigrateStep {
     deleteFgsStmt.addBatch();
   }
   
+  private void deleteFeatureGroupStatisticsActivity(PreparedStatement deleteFgsActStmt, Integer fgStatisticsId)
+    throws SQLException {
+    deleteFgsActStmt.setInt(1, fgStatisticsId);
+    deleteFgsActStmt.addBatch();
+  }
+  
   private void deleteTrainingDatasetStatistics(PreparedStatement deleteTdsStmt, Integer tdStatisticsId)
       throws SQLException {
     deleteTdsStmt.setInt(1, tdStatisticsId);
     deleteTdsStmt.addBatch();
+  }
+  
+  private void deleteTrainingDatasetStatisticsActivity(PreparedStatement deleteTdsActStmt, Integer tdStatisticsId)
+    throws SQLException {
+    deleteTdsActStmt.setInt(1, tdStatisticsId);
+    deleteTdsActStmt.addBatch();
   }
   
   private byte[] convertPercentilesToByteArray(List<Double> percentilesList) {
