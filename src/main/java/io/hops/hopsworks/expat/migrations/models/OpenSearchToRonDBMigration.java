@@ -191,17 +191,17 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                 }
 
                 Long created = new Date().getTime();
-                if (source.has("create_timestamp")) {
+                if (source.has("create_timestamp") && !value.isNull("create_timestamp")) {
                   created = source.getLong("create_timestamp");
                 }
 
                 String description = null;
-                if (value.has("description")) {
+                if (value.has("description") && !value.isNull("description")) {
                   description = value.getString("description");
                 }
 
                 String metrics = null;
-                if (value.has("metrics")) {
+                if (value.has("metrics") && !value.isNull("metrics")) {
                   Object metricsObj;
                   metricsObj = value.get("metrics");
                   if (metricsObj instanceof JSONObject) {
@@ -212,12 +212,12 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                 }
 
                 String program = null;
-                if (value.has("program")) {
+                if (value.has("program") && !value.isNull("program")) {
                   program = value.getString("program");
                 }
 
                 String framework = "PYTHON";
-                if (value.has("framework")) {
+                if (value.has("framework") && !value.isNull("framework")) {
                   framework = value.getString("framework");
                 }
 
@@ -228,12 +228,12 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
                 }
 
                 String experimentId = null;
-                if (value.has("experimentId")) {
+                if (value.has("experimentId") && !value.isNull("experimentId")) {
                   experimentId = value.getString("experimentId");
                 }
 
                 String experimentProjectName = null;
-                if (value.has("experimentProjectName")) {
+                if (value.has("experimentProjectName") && !value.isNull("experimentProjectName")) {
                   experimentProjectName = value.getString("experimentProjectName");
                 }
 
