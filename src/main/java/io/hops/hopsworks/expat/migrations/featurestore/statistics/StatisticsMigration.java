@@ -80,15 +80,10 @@ public class StatisticsMigration implements MigrateStep {
   private static final String SPLIT_NAME_VALIDATION = "validation";
   
   private static final String FOR_MIGRATION_FLAG = "for-migration";
-  private static final String TO_BE_DELETED_FLAG = "to-be-deleted";
   
   private final static String GET_FEATURE_DESCRIPTIVE_STATISTICS = String.format(
     "SELECT id, feature_type, count, num_non_null_values, num_null_values, extended_statistics_path FROM %s WHERE " +
       "feature_name = '%s'", FEATURE_DESCRIPTIVE_STATISTICS_TABLE_NAME, FOR_MIGRATION_FLAG);
-  
-  private final static String GET_ORPHAN_STATISTICS =
-    String.format("SELECT id, feature_type, count, extended_statistics_path FROM %s WHERE feature_name = '%s'",
-      FEATURE_DESCRIPTIVE_STATISTICS_TABLE_NAME, TO_BE_DELETED_FLAG);
   
   private final static String GET_EARLIEST_FG_COMMITS_PER_FEATURE_GROUP =
     String.format("SELECT feature_group_id, MIN(commit_id) from %s GROUP BY feature_group_id",
@@ -204,7 +199,6 @@ public class StatisticsMigration implements MigrateStep {
   public void runMigration()
     throws MigrationException, SQLException, IOException, IllegalAccessException, InstantiationException {
     PreparedStatement fdsStmt = null;
-    PreparedStatement orphanStatsStmt = null;
     
     try {
       connection.setAutoCommit(false);
@@ -219,22 +213,16 @@ public class StatisticsMigration implements MigrateStep {
       migrateFeatureDescriptiveStatistics(fdsResultSet);
       fdsStmt.close();
       
-      // delete orphan statistics files. There are two possible reasons why stats file are orphan during the migration:
+      // NOTE: The deletion of orphan fds statistics and files is delegated to the StatisticsCleaner.
+      // There are two possible reasons why stats file are orphan during the migration:
       // - if multiple FG statistics on the same commit id, only the most recent is migrated, the rest become orphan.
       // - if multiple TD statistics on the same dataset, only the most recent is migrated, the rest become orphan.
-      orphanStatsStmt = connection.prepareStatement(GET_ORPHAN_STATISTICS);
-      ResultSet orphanStatsResultSet = orphanStatsStmt.executeQuery();
-      deleteOrphanStatisticsFiles(orphanStatsResultSet);
-      orphanStatsStmt.close();
       
       connection.commit();
       connection.setAutoCommit(true);
     } finally {
       if (fdsStmt != null) {
         fdsStmt.close();
-      }
-      if (orphanStatsStmt != null) {
-        orphanStatsStmt.close();
       }
     }
   }
@@ -375,7 +363,10 @@ public class StatisticsMigration implements MigrateStep {
       }
 
       // delete temporary feature descriptive statistics
-      deleteFeatureDescriptiveStatistics(fdsIds);
+      // NOTE: These feature descriptive statistics have become orphan. The deletion of orphan fds statistics and files
+      // is delegated to the StatisticsCleaner.
+      String fdsIdsStr = fdsIds.stream().map(String::valueOf).collect(Collectors.joining(", "));
+      LOGGER.info(String.format("[deleteFeatureDescriptiveStatistics] Delegate deletion of FDS: %s", fdsIdsStr));
     } finally {
       if (insertFdsStmt != null) {
         insertFdsStmt.close();
@@ -408,35 +399,6 @@ public class StatisticsMigration implements MigrateStep {
         deleteTdsActStmt.close();
       }
     }
-  }
-  
-  private void deleteOrphanStatisticsFiles(ResultSet orphanStatsResultSet) throws SQLException, IOException {
-    List<Integer> fdsIds = new ArrayList<>(); // keep track of fds ids to be removed
-    
-    // per orphan statistics - delete hdfs file
-    while (orphanStatsResultSet.next()) {
-      int statisticsId =
-        orphanStatsResultSet.getInt(1); // this ID is the same for fg/td statistics and temporary fd stats
-      String entityType = orphanStatsResultSet.getString(2); // entity type is temp. stored in feature_type column
-      int entityId = orphanStatsResultSet.getInt(3); // entity id. If FG entity, used to look for earliest commit id
-      String filePath = orphanStatsResultSet.getString(4); // extended_stats_path contains the old stats file path
-      
-      fdsIds.add(statisticsId);  // track temporary fds ids, to be removed
-      
-      if (dryRun) {
-        LOGGER.info(
-          String.format("[deleteOrphanStatisticsFiles] Deleting orphan stats file: %s, %s, %s, %s", statisticsId,
-            entityType, entityId, filePath));
-      } else {
-        LOGGER.info(
-          String.format("[deleteOrphanStatisticsFiles] Deleting orphan stats file: %s, %s, %s, %s", statisticsId,
-            entityType, entityId, filePath));
-        dfso.rm(filePath, true);
-      }
-    }
-    
-    // delete temporary feature descriptive statistics
-    deleteFeatureDescriptiveStatistics(fdsIds);
   }
   
   private boolean migrateFeatureGroupStatistics(int statisticsId, String filePath, Long windowStartCommitTime,
@@ -646,6 +608,7 @@ public class StatisticsMigration implements MigrateStep {
       
       // insert fds
       insertFdsStmt.executeBatch();
+      connection.commit();
       
       // insert intermediate table rows
       ResultSet generatedKeys = insertFdsStmt.getGeneratedKeys();
@@ -656,6 +619,7 @@ public class StatisticsMigration implements MigrateStep {
         insertIntermediateStmt.addBatch();
       }
       insertIntermediateStmt.executeBatch();
+      connection.commit();
     }
   }
   
@@ -708,33 +672,7 @@ public class StatisticsMigration implements MigrateStep {
           "statistics parameter in position: " + String.valueOf(paramPosition));
     }
   }
-  
-  private void deleteFeatureDescriptiveStatistics(Collection<Integer> fdsIds) throws SQLException {
-    if (fdsIds.isEmpty()) {
-      return; // nothing to be deleted
-    }
-    PreparedStatement deleteFdsStmt = null;
-    try {
-      deleteFdsStmt = connection.prepareStatement(DELETE_FEATURE_DESCRIPTIVE_STATISTICS);
-      for (Integer fdsId : fdsIds) {
-        deleteFdsStmt.setInt(1, fdsId);
-        deleteFdsStmt.addBatch();
-      }
-      if (dryRun) {
-        LOGGER.info(
-          String.format("[deleteFeatureDescriptiveStatistics] Delete batch of FDS: %s", deleteFdsStmt.toString()));
-      } else {
-        LOGGER.info(
-          String.format("[deleteFeatureDescriptiveStatistics] Delete batch of FDS: %s", deleteFdsStmt.toString()));
-        deleteFdsStmt.executeBatch();
-      }
-    } finally {
-      if (deleteFdsStmt != null) {
-        deleteFdsStmt.close();
-      }
-    }
-  }
-  
+
   private Blob convertPercentilesToBlob(List<Double> percentiles) throws SQLException {
     return percentiles != null && !percentiles.isEmpty() ? new SerialBlob(convertPercentilesToByteArray(percentiles)) :
       null;
@@ -758,7 +696,6 @@ public class StatisticsMigration implements MigrateStep {
         filePath = new Path(dirPath, statisticsFileName(windowStartCommitTime, windowEndCommitTime, featureName));
       }
     }
-    //    extendedStatistics = sanitizeExtendedStatistics(extendedStatistics);
     // get owner, permissions and group
     String owner = fileStatus.getOwner();
     FsPermission permissions = fileStatus.getPermission();
@@ -812,11 +749,13 @@ public class StatisticsMigration implements MigrateStep {
       if (c % statisticsMigrationBatchSize == 0) {
         LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
         updateFgsStmt.executeBatch();
+        connection.commit();
       }
       c++;
     }
     LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Update FGS: %s", updateFgsStmt.toString()));
     updateFgsStmt.executeBatch();
+    connection.commit();
   }
   
   private void deleteStatisticsBatch(PreparedStatement deleteStatisticsStmt, Set<Integer> statisticsIdsToDelete,
@@ -830,12 +769,14 @@ public class StatisticsMigration implements MigrateStep {
         LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
             deleteStatisticsStmt.toString()));
         deleteStatisticsStmt.executeBatch();
+        connection.commit();
       }
       c++;
     }
     LOGGER.info(String.format("[migrateFeatureDescriptiveStatistics] Delete %s: %s", log,
         deleteStatisticsStmt.toString()));
     deleteStatisticsStmt.executeBatch();
+    connection.commit();
   }
   
   private byte[] convertPercentilesToByteArray(List<Double> percentilesList) {
