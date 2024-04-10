@@ -589,14 +589,19 @@ public class StatisticsMigration implements MigrateStep {
     
     // insert feature descriptive statistics rows
     for (ExpatFeatureDescriptiveStatistics fds : fdsList) {
-      // create extended statistics file, if needed
-      fds.extendedStatistics =
-        createExtendedStatisticsFile(windowStartCommitTime, windowEndCommitTime, fds.featureName,
-          fds.extendedStatistics, beforeTransformation, splitName, dirPath, fileStatus);
-      // set statement parameters
-      setFdsStatementParameters(insertFdsStmt, fds);
-      // add to batch
-      insertFdsStmt.addBatch();
+      if(fds.featureName.length() <= 63) {
+        // create extended statistics file, if needed
+        fds.extendedStatistics =
+            createExtendedStatisticsFile(windowStartCommitTime, windowEndCommitTime, fds.featureName,
+                fds.extendedStatistics, beforeTransformation, splitName, dirPath, fileStatus);
+        // set statement parameters
+        setFdsStatementParameters(insertFdsStmt, fds);
+        // add to batch
+        insertFdsStmt.addBatch();
+      } else {
+        LOGGER.info(String.format("LONG FEATURE_NAME: %s - %s", fds.featureName, fds.id != null ? fds.id.toString() :
+            "null"));
+      }
     }
     
     if (dryRun) {
