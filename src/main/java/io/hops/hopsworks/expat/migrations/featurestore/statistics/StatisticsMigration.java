@@ -46,7 +46,6 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -415,10 +414,6 @@ public class StatisticsMigration implements MigrateStep {
       LOGGER.info(String.format("[migrateFeatureGroupStatistics] -- skipping fds row due to invalid " +
           "statistics file at '%s'", filePath));
       return false;  // skipping fds
-    } else if (fdsList.isEmpty()){
-      LOGGER.info(String.format("[migrateFeatureGroupStatistics] -- doesn't exists skip for now" +
-          "statistics file at '%s'", filePath));
-      return true;
     }
     
     // get stats file parent directory
@@ -450,7 +445,7 @@ public class StatisticsMigration implements MigrateStep {
     
     if (!dfso.exists(filePath)) {
       LOGGER.info("[migrateTrainingDatasetStatistics] statistics file does not exist: " + filePath);
-      return true;
+      return false;
     }
     
     // get owner, permissions and group
@@ -467,10 +462,6 @@ public class StatisticsMigration implements MigrateStep {
         LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
           "statistics file at '%s'", filePath));
         return false;  // skipping fds
-      } else if (fdsList.isEmpty()){
-        LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- doesn't exists skip for now" +
-            "statistics file at '%s'", filePath));
-        return true;
       }
       // inserts fds and intermediate (train_fds) rows
       insertFeatureDescriptiveStatistics(statisticsId, fdsList, insertTrainDatasetFdsStmt, insertFdsStmt, null,
@@ -491,10 +482,6 @@ public class StatisticsMigration implements MigrateStep {
         LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
           "statistics file at '%s'", filePath));
         return false;  // skipping fds
-      } else if (fdsList.isEmpty()){
-        LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- doesn't exists skip for now" +
-            "statistics file at '%s'", filePath));
-        return true;
       }
       // inserts fds and intermediate (test_fds) rows
       insertFeatureDescriptiveStatistics(statisticsId, fdsList, insertTestDatasetFdsStmt, insertFdsStmt, null,
@@ -516,10 +503,6 @@ public class StatisticsMigration implements MigrateStep {
           LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
             "statistics file at '%s'", filePath));
           return false;  // skipping fds
-        } else if (fdsList.isEmpty()){
-          LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- doesn't exists skip for now" +
-              "statistics file at '%s'", filePath));
-          return true;
         }
         // inserts fds and intermediate (val_fds) rows
         insertFeatureDescriptiveStatistics(statisticsId, fdsList, insertValDatasetFdsStmt, insertFdsStmt, null,
@@ -539,10 +522,6 @@ public class StatisticsMigration implements MigrateStep {
         LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- skipping fds row due to invalid " +
           "statistics file at '%s'", filePath));
         return false;  // skipping fds
-      } else if (fdsList.isEmpty()){
-        LOGGER.info(String.format("[migrateTrainingDatasetStatistics] -- doesn't exists skip for now" +
-            "statistics file at '%s'", filePath));
-        return true;
       }
       boolean beforeTransformation = filePath.contains("transformation_fn");
       Path parentDirPath = oldFilePath.getParent();
@@ -590,7 +569,7 @@ public class StatisticsMigration implements MigrateStep {
     try {
       if (!dfso.exists(filePath)) {
         LOGGER.info(String.format("[readAndParseLegacyStatistics] statistics file does not exist at '%s'",filePath));
-        return Collections.EMPTY_LIST; // no file content to parse
+        return null; // no file content to parse
       }
       fileContent = dfso.cat(filePath);
       
