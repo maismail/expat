@@ -276,7 +276,16 @@ public class OpenSearchToRonDBMigration implements MigrateStep {
     if(expatHdfsUser == null) {
       return getProjectCreator(project);
     }
-    String hopsworksUsername = expatHdfsUser.getName().split("__")[1];
+    String hopsworksUsername;
+    String[] userParts =  expatHdfsUser.getName().split("__");
+    if(userParts.length > 1){
+      hopsworksUsername = userParts[1];
+    } else {
+      LOGGER.info("User id is malformed for " + expatHdfsUser.getName() + " in project " + project.getName()
+          + "json " + source.toString());
+      return getProjectCreator(project);
+    }
+
     ExpatUser user = expatUserFacade.getExpatUserByUsername(connection, hopsworksUsername);
     if(user == null) {
       return getProjectCreator(project);
