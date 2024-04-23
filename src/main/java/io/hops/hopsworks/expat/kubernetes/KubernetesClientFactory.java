@@ -49,6 +49,6 @@ public class KubernetesClientFactory {
           .build();
     }
 
-    return new DefaultKubernetesClient(kubeConfig);
+    return new DefaultKubernetesClient();
   }
 }
