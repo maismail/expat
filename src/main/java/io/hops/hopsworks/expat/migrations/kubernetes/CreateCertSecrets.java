@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.hops.hopsworks.common.util.HopsUtils;
 import io.hops.hopsworks.expat.configuration.ConfigurationBuilder;
 import io.hops.hopsworks.expat.configuration.ExpatConf;
@@ -36,6 +37,8 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
@@ -58,13 +61,16 @@ public class CreateCertSecrets implements MigrateStep {
 
   @Override
   public void migrate() throws MigrationException {
-    KubernetesClient client;
+    /*KubernetesClient client;
     try {
       client = KubernetesClientFactory.getClient();
     } catch (ConfigurationException e) {
       throw new MigrationException("Cannot read the configuration", e);
-    }
-
+    }*/
+    
+    File baseDir = new File("/tmp/k8s");
+    baseDir.mkdirs();
+    
     String masterPwd = null;
     try {
       Configuration config = ConfigurationBuilder.getConfiguration();
@@ -113,9 +119,20 @@ public class CreateCertSecrets implements MigrateStep {
                   .build())
               .withData(secretData)
               .build();
-
+          
+          String yamlString = Serialization.asYaml(secret);
+          
+          File secretFile = new File(baseDir, kubeUsername + ".yaml");
+          
+          // Write the YAML to a file
+          try (FileWriter writer = new FileWriter(secretFile)) {
+            writer.write(yamlString);
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
+          
           // Send request
-          client.secrets().inNamespace(nsName).createOrReplace(secret);
+          //client.secrets().inNamespace(nsName).createOrReplace(secret);
 
           LOGGER.info("Secret " + kubeUsername + " created for project user: " + projectName);
         } catch (Exception e) {
