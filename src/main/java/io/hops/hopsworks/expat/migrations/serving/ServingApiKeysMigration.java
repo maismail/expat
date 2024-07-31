@@ -16,6 +16,8 @@
 
 package io.hops.hopsworks.expat.migrations.serving;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
@@ -45,9 +47,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -62,7 +66,7 @@ public class ServingApiKeysMigration implements MigrateStep {
   
   private final static String UPDATE_API_KEY_SCOPES = "UPDATE api_key_scope SET `scope` = ? WHERE `scope` = ?";
   private final static String GET_ACTIVATED_USERS = "SELECT uid, username, email FROM users WHERE " +
-    "email NOT IN ('serving@hopsworks.se', 'agent@hops.io', 'onlinefs@hopsworks.ai') AND " +
+    "email NOT IN ('serving@hopsworks.se', 'agent@hops.io', 'onlinefs@hopsworks.ai', 'airflow@hopsworks.ai' ) AND " +
     "status = 2";
   private final static String GET_PROJECTS_BY_USER = "SELECT projectname FROM project WHERE id IN (SELECT project_id " +
     "FROM project_team WHERE team_member = ?)";
@@ -85,6 +89,7 @@ public class ServingApiKeysMigration implements MigrateStep {
   private final int RANDOM_PREFIX_KEY_LEN = 16;
   
   private final static String HOPS_SYSTEM_NAMESPACE = "hops-system";
+  private final static String HOPS_SYSTEM_USERS = HOPS_SYSTEM_NAMESPACE + "--users";
   
   private final static String LABEL_PREFIX = "serving.hops.works";
   private final static String API_KEY_NAME_LABEL_NAME = LABEL_PREFIX + "/name";
@@ -100,6 +105,14 @@ public class ServingApiKeysMigration implements MigrateStep {
   private final static String SERVING_API_KEY_SECRET_KEY = "apiKey";
   private final static String SERVING_API_KEY_SECRET_SUFFIX = "--serving";
   private final static String SERVING_API_KEY_SECRET_PREFIX = "api-key";
+  
+  private final static String GET_USER_GROUPS = "SELECT group_name FROM bbc_group WHERE gid IN (SELECT gid " +
+    "FROM user_group WHERE uid = ?)";
+  
+  private final static String GET_ALL_PROJECTS = "SELECT id, projectname FROM project";
+  private final static String GET_PROJECT_TEAM_MEMBERS = "SELECT team_member, team_role FROM project_team WHERE  " +
+    "team_member NOT IN ('serving@hopsworks.se', 'agent@hops.io', 'onlinefs@hopsworks.ai', 'airflow@hopsworks.ai' )  " +
+    "AND project_id = ?";
   
   @Override
   public void migrate() throws MigrationException {
@@ -123,6 +136,11 @@ public class ServingApiKeysMigration implements MigrateStep {
     PreparedStatement deleteApiKeyScopesStmt = null;
     PreparedStatement deleteApiKeysStmt = null;
     PreparedStatement getApiKeyByNameStmt = null;
+    
+    PreparedStatement getUsersGroupsStmt = null;
+    PreparedStatement getAllProjectsStmt = null;
+    PreparedStatement getProjectTeamMembersStmt = null;
+    
     try {
       connection.setAutoCommit(false);
       
@@ -140,7 +158,7 @@ public class ServingApiKeysMigration implements MigrateStep {
       boolean isKFServingInstalled;
       try {
         // -- check kubernetes is installed
-        ExpatVariables kfservingInstalled = expatVariablesFacade.findById("kube_kfserving_installed");
+        ExpatVariables kfservingInstalled = expatVariablesFacade.findById("kube_kserve_installed");
         isKFServingInstalled = Boolean.parseBoolean(kfservingInstalled.getValue());
       } catch (IllegalAccessException | SQLException | InstantiationException ex) {
         String errorMsg = "Could not migrate serving api keys";
@@ -165,10 +183,16 @@ public class ServingApiKeysMigration implements MigrateStep {
         // -- per activated user
         getActivatedUsersStmt = connection.prepareStatement(GET_ACTIVATED_USERS);
         ResultSet activatedUsersResultSet = getActivatedUsersStmt.executeQuery();
+        // -- userAccountsMap to populate hops-system--users HOPS_SYSTEM_USERS configmap
+        Map<String, String> userAccountMap = new HashMap<>();
+        // activated user email to username
+        Map<String, String> userEmailToName = new HashMap<>();
         while (activatedUsersResultSet.next()) {
           int uid = activatedUsersResultSet.getInt(1);
           String username = activatedUsersResultSet.getString(2);
           String email = activatedUsersResultSet.getString(3);
+          
+          userEmailToName.put(email, username);
           
           // -- per user's api key with serving scope
           getApiKeyWithServingByUserStmt = connection.prepareStatement(GET_API_KEY_WITH_SERVING_BY_USER);
@@ -195,8 +219,89 @@ public class ServingApiKeysMigration implements MigrateStep {
           getProjectsByUserStmt.setString(1, email);
           createKubeServingApiKeySecrets(name, secret, hash, username, date, getProjectsByUserStmt);
           getProjectsByUserStmt.close();
+          
+          // get users groups to populate --users configmap
+          getUsersGroupsStmt = connection.prepareStatement(GET_USER_GROUPS);
+          getUsersGroupsStmt.setInt(1, uid);
+          ResultSet usersGroupsResults = getUsersGroupsStmt.executeQuery();
+          List<String>  usersGroups = new ArrayList<>();
+          while (usersGroupsResults.next()){
+            String groupName = usersGroupsResults.getString(1);
+            usersGroups.add(groupName);
+          }
+          usersGroupsResults.close();
+          getUsersGroupsStmt.close();
+          
+          if(!usersGroups.isEmpty()){
+            userAccountMap.put(username, String.join(",", usersGroups));
+          }
         }
         activatedUsersResultSet.close();
+        
+        if(!userAccountMap.isEmpty()){
+          LOGGER.info("Updating " + HOPS_SYSTEM_USERS + " configmap with users {}", userAccountMap);
+          ConfigMap usersAccountConfigMap = new ConfigMapBuilder()
+            .withMetadata( new ObjectMetaBuilder()
+              .withName(HOPS_SYSTEM_USERS)
+              .withNamespace(HOPS_SYSTEM_NAMESPACE)
+              .withLabels(new HashMap<String, String>() {
+                {
+                  put(API_KEY_SCOPE_LABEL_NAME, SERVING_API_KEY_NAME); // serving
+                  put(API_KEY_RESERVED_LABEL_NAME, "true");
+                }
+              })
+              .build())
+            .withData(userAccountMap)
+            .build();
+          kubeClient.configMaps().inNamespace(HOPS_SYSTEM_NAMESPACE).createOrReplace(usersAccountConfigMap);
+          LOGGER.info("Updated " + HOPS_SYSTEM_USERS + " configmap with users {}", userAccountMap);
+        }
+        
+        // update --project-teams configmap per project namespace
+        getAllProjectsStmt = connection.prepareStatement(GET_ALL_PROJECTS);
+        ResultSet allProjectsResultSet = getAllProjectsStmt.executeQuery();
+        while (allProjectsResultSet.next()){
+          int projectId = allProjectsResultSet.getInt(1);
+          String projectName = allProjectsResultSet.getString(2);
+          Map<String, String> projectTeamsMap = new HashMap<>();
+          
+          getProjectTeamMembersStmt = connection.prepareStatement(GET_PROJECT_TEAM_MEMBERS);
+          getProjectTeamMembersStmt.setInt(1, projectId);
+          ResultSet projectTeamsResultSet = getProjectTeamMembersStmt.executeQuery();
+          while(projectTeamsResultSet.next()){
+            String teamMemberEmail = projectTeamsResultSet.getString(1);
+            String teamMemberRole = projectTeamsResultSet.getString(2);
+            if(userEmailToName.containsKey(teamMemberEmail)){
+              projectTeamsMap.put(userEmailToName.get(teamMemberEmail), teamMemberRole);
+            }
+          }
+          projectTeamsResultSet.close();
+          getProjectTeamMembersStmt.close();
+          
+          if(!projectTeamsMap.isEmpty()){
+            String namespace = projectName.toLowerCase().replaceAll("[^a-z0-9-]", "-");
+            String name = namespace + "-project-teams";
+            LOGGER.info("Updating " + name + " configmap with members {}", projectTeamsMap);
+            ConfigMap projectTeamConfigMap = new ConfigMapBuilder()
+              .withMetadata( new ObjectMetaBuilder()
+                .withName(name)
+                .withNamespace(namespace)
+                .withLabels(new HashMap<String, String>() {
+                  {
+                    put(API_KEY_SCOPE_LABEL_NAME, SERVING_API_KEY_NAME); // serving
+                    put(API_KEY_RESERVED_LABEL_NAME, "true");
+                  }
+                })
+                .build())
+              .withData(projectTeamsMap)
+              .build();
+            kubeClient.configMaps().inNamespace(namespace).createOrReplace(projectTeamConfigMap);
+            LOGGER.info("Updated " + name + " configmap with members {}", projectTeamsMap);
+          }
+        }
+        
+        allProjectsResultSet.close();
+        getAllProjectsStmt.close();
       }
       
       connection.commit();
@@ -208,7 +313,8 @@ public class ServingApiKeysMigration implements MigrateStep {
     } finally {
       closeConnections(updateApiKeyScopesStmt, getActivatedUsersStmt, insertServingApiKeyStmt,
         insertServingApiKeyScopesStmt, getProjectsByUserStmt, getApiKeyByPrefixStmt, getApiKeyWithServingByUserStmt,
-        deleteApiKeyScopesStmt, deleteApiKeysStmt, getApiKeyByNameStmt);
+        deleteApiKeyScopesStmt, deleteApiKeysStmt, getApiKeyByNameStmt, getUsersGroupsStmt, getAllProjectsStmt,
+        getProjectTeamMembersStmt);
       if (kubeClient != null) { kubeClient.close(); }
     }
     LOGGER.info("Finished serving api keys migration");
@@ -248,7 +354,7 @@ public class ServingApiKeysMigration implements MigrateStep {
       boolean isKFServingInstalled;
       try {
         // -- check kubernetes is installed
-        ExpatVariables kfservingInstalled = expatVariablesFacade.findById("kube_kfserving_installed");
+        ExpatVariables kfservingInstalled = expatVariablesFacade.findById("kube_kserve_installed");
         isKFServingInstalled = Boolean.parseBoolean(kfservingInstalled.getValue());
       } catch (IllegalAccessException | SQLException | InstantiationException ex) {
         String errorMsg = "Could not rollback serving api keys";
